@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="guard_label">덜폰 보호 기능</string>
+    <string name="guard_description">일정에 맞춰 앱을 잠그고, 잠금·엄격모드 중에는 덜폰을 끄거나 지우는 설정 화면을 막아요. 화면 내용은 어디에도 저장하거나 보내지 않아요.</string>
+    <string name="admin_label">덜폰 삭제 방지</string>
+    <string name="admin_description">엄격모드 중 덜폰이 삭제되지 않게 막아요.</string>
+</resources>
