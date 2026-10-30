@@ -21,11 +21,11 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Build debug APK
+      - name: Build APK
         run: |
           chmod +x gradlew
           set -o pipefail
-          ./gradlew assembleDebug --stacktrace 2>&1 | tee build.log
+          ./gradlew assembleRelease --stacktrace 2>&1 | tee build.log
 
       # 실패하면 오류 기록을 build-log 브랜치에 저장 (고치기 위해)
       - name: Save build log on failure
@@ -44,13 +44,13 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: DeolPhone-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/release/app-release.apk
 
       # 폰에서 로그인 없이 바로 받을 수 있게 '릴리스'에 APK를 올린다
       - name: Publish APK to Releases
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk DeolPhone.apk
+          cp app/build/outputs/apk/release/app-release.apk DeolPhone.apk
           gh release delete latest --yes --cleanup-tag || true
           gh release create latest DeolPhone.apk --title "덜폰 최신 APK" --notes "자동 빌드 ${{ github.sha }}"

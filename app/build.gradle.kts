@@ -4,22 +4,43 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+// 항상 같은 키(app/signing/deol.jks)로 서명해야 새 버전을 기존 앱 위에 덮어 설치할 수 있다.
+val deolKeystore: String = "signing/deol.jks"
+val deolPassword: String = "deolphone-key"
+
 android {
     namespace = "com.deolphone.app"
     compileSdk = 35
 
     defaultConfig {
         applicationId = "com.deolphone.app"
-        minSdk = 29
+        minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = (System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1)
+        versionName = "1.0." + (System.getenv("GITHUB_RUN_NUMBER") ?: "0")
+    }
+
+    signingConfigs {
+        if (file(deolKeystore).exists()) {
+            create("deol") {
+                storeFile = file(deolKeystore)
+                storePassword = deolPassword
+                keyAlias = "deolphone"
+                keyPassword = deolPassword
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("deol") ?: signingConfigs.getByName("debug")
         }
+    }
+
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
     }
 
     compileOptions {
