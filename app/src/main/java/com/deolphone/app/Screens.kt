@@ -201,10 +201,8 @@ private fun TodayTab(d: UiData, rules: List<Rule>, goalMin: Int) {
     val over = total > goalMs
     val progress = (total.toFloat() / goalMs).coerceIn(0f, 1f)
     val used = remember(d) { d.rows.filter { it.millis > 0 }.sortedByDescending { it.millis } }
-    val labelOf = remember(d) {
-        val m = d.rows.associate { it.pkg to it.label }
-        { p: String -> m[p] ?: p }
-    }
+    val labelMap = remember(d) { d.rows.associate { it.pkg to it.label } }
+    val labelOf: (String) -> String = { p -> labelMap[p] ?: p }
     val now = d.loadedAt
     val todays = remember(d, rules) {
         rules.filter { r ->

@@ -2,6 +2,7 @@ name: Build APK
 
 on:
   push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -23,7 +24,22 @@ jobs:
       - name: Build debug APK
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          set -o pipefail
+          ./gradlew assembleDebug --stacktrace 2>&1 | tee build.log
+
+      # 실패하면 오류 기록을 build-log 브랜치에 저장 (고치기 위해)
+      - name: Save build log on failure
+        if: failure()
+        run: |
+          cp build.log /tmp/build.log || echo "no log" > /tmp/build.log
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git checkout --orphan build-log
+          git rm -rf -q . || true
+          cp /tmp/build.log build.log
+          git add build.log
+          git commit -q -m "build log ${{ github.sha }}"
+          git push -f origin build-log
 
       - uses: actions/upload-artifact@v4
         with:

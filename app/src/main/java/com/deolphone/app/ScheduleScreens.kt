@@ -115,10 +115,8 @@ fun ScheduleTab(
     var pickAllow by remember { mutableStateOf(false) }
     var editGoal by remember { mutableStateOf(false) }
 
-    val labelOf = remember(d) {
-        val m = d.rows.associate { it.pkg to it.label }
-        { p: String -> m[p] ?: p }
-    }
+    val labelMap = remember(d) { d.rows.associate { it.pkg to it.label } }
+    val labelOf: (String) -> String = { p -> labelMap[p] ?: p }
     val pickable = remember(d) {
         d.rows.filter { it.pkg != ctx.packageName }
             .sortedWith(compareByDescending<AppRow> { it.millis }.thenBy { it.label })
