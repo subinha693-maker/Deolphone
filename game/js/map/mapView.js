@@ -3,9 +3,9 @@
  * ------------------------------------------------------------
  * 장면은 맵 데이터(WS.MAPS.<id>)와 상호작용 처리(hooks)만 넘기면 된다.
  *
- *  - 타일 단위 4방향 이동 (키보드 방향키/WASD, 화면 탭 → 길찾기 이동)
+ *  - 타일 단위 4방향 이동 (화면 조이스틱, 키보드 방향키/WASD)
  *  - 충돌: 맵의 solid 격자 + 오브젝트 · NPC 가 차지한 칸
- *  - 조사: 바라보는 칸의 오브젝트/NPC (Space · Enter · Z, 또는 대상을 탭)
+ *  - 조사: 바라보는 칸의 오브젝트/NPC (조사 버튼, Space · Enter · Z)
  *  - 조사 가능 표시: 반짝이는 표식 (가까이 가면 또렷해지고, 조사한 뒤에는 옅어짐)
  *  - 카메라: 주인공(또는 지정 대상)을 따라가며, 대화창이 열리면 그 위쪽에 맞춘다
  *  - 위치는 game.state.position 에 기록 (세이브 대상)
@@ -33,7 +33,6 @@ WS.MapView = class {
     this.keys = [];
     this.path = [];
     this.pending = null;             // 길찾기 후 조사할 대상
-    this.tapMark = null;
     this.emotes = [];
     this.camFocus = 'player';
     this.cam = { x: 0, y: 0, ready: false };
@@ -43,12 +42,71 @@ WS.MapView = class {
     for (const n of def.npcs || []) this.npcs[n.id] = this.makeActor(n.id, n.sprite, n);
     this.objects = (def.objects || []).map(o => Object.assign({}, o));
     this.base = null;                // 바닥 · 벽 캐시
+    this.stickDir = null;            // 조이스틱 방향
     this._onKeyDown = e => this.onKeyDown(e);
     this._onKeyUp = e => this.onKeyUp(e);
-    this._onTap = e => this.onTap(e);
     window.addEventListener('keydown', this._onKeyDown);
     window.addEventListener('keyup', this._onKeyUp);
-    game.stage.canvas.addEventListener('click', this._onTap);
+    this.bindPad();
+  }
+
+  // ---------------- 조이스틱 + 조사 버튼 ----------------
+  bindPad() {
+    const pad = this.pad = document.getElementById('pad');
+    const base = pad.querySelector('.pad-base');
+    const knob = pad.querySelector('.pad-knob');
+    const act = pad.querySelector('.pad-act');
+    let pid = null;
+    const setKnob = (x, y) => { knob.style.setProperty('--kx', x + 'px'); knob.style.setProperty('--ky', y + 'px'); };
+    const track = e => {
+      const r = base.getBoundingClientRect();
+      const R = r.width / 2;
+      let dx = e.clientX - (r.left + R), dy = e.clientY - (r.top + R);
+      const dist = Math.hypot(dx, dy), max = R * 0.6;
+      if (dist > max) { dx *= max / dist; dy *= max / dist; }
+      setKnob(dx, dy);
+      // 가운데 25% 는 멈춤, 그 밖에서는 더 많이 기운 축의 방향
+      this.stickDir = dist < R * 0.25 ? null
+        : Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+    };
+    const release = () => { pid = null; this.stickDir = null; setKnob(0, 0); };
+    this._pad = {
+      down: e => { e.preventDefault(); e.stopPropagation(); pid = e.pointerId; try { base.setPointerCapture(pid); } catch (_) {} track(e); },
+      move: e => { if (e.pointerId === pid) track(e); },
+      up: e => { if (e.pointerId === pid) release(); },
+      act: e => {
+        e.preventDefault(); e.stopPropagation();
+        act.classList.add('hit'); setTimeout(() => act.classList.remove('hit'), 120);
+        this.onActionKey();
+      },
+      stop: e => e.stopPropagation(),
+      release,
+    };
+    base.addEventListener('pointerdown', this._pad.down);
+    base.addEventListener('pointermove', this._pad.move);
+    base.addEventListener('pointerup', this._pad.up);
+    base.addEventListener('pointercancel', this._pad.up);
+    base.addEventListener('lostpointercapture', this._pad.up);
+    base.addEventListener('click', this._pad.stop);
+    act.addEventListener('pointerdown', this._pad.act);
+    act.addEventListener('click', this._pad.stop);
+  }
+
+  unbindPad() {
+    const pad = this.pad;
+    if (!pad || !this._pad) return;
+    const base = pad.querySelector('.pad-base'), act = pad.querySelector('.pad-act');
+    base.removeEventListener('pointerdown', this._pad.down);
+    base.removeEventListener('pointermove', this._pad.move);
+    base.removeEventListener('pointerup', this._pad.up);
+    base.removeEventListener('pointercancel', this._pad.up);
+    base.removeEventListener('lostpointercapture', this._pad.up);
+    base.removeEventListener('click', this._pad.stop);
+    act.removeEventListener('pointerdown', this._pad.act);
+    act.removeEventListener('click', this._pad.stop);
+    this._pad.release();
+    pad.classList.remove('show');
+    act.classList.remove('ready');
   }
 
   /** 장면 종료 시 반드시 호출 (입력 리스너 정리) */
@@ -56,7 +114,7 @@ WS.MapView = class {
     this.detached = true;
     window.removeEventListener('keydown', this._onKeyDown);
     window.removeEventListener('keyup', this._onKeyUp);
-    this.game.stage.canvas.removeEventListener('click', this._onTap);
+    this.unbindPad();
   }
 
   makeActor(id, sprite, at) {
@@ -73,7 +131,7 @@ WS.MapView = class {
 
   // ---------------- 상태 ----------------
   explore() { if (!this.detached) { this.mode = 'explore'; this.camFocus = 'player'; } }
-  cutscene() { this.mode = 'cutscene'; this.keys = []; this.path = []; this.pending = null; this.tapMark = null; }
+  cutscene() { this.mode = 'cutscene'; this.keys = []; this.path = []; this.pending = null; }
 
   get canControl() {
     const ui = this.game.ui;
@@ -206,7 +264,7 @@ WS.MapView = class {
     const dir = map[e.key];
     if (dir) {
       if (!this.keys.includes(dir)) this.keys.push(dir);
-      if (this.canControl) { e.preventDefault(); this.path = []; this.pending = null; this.tapMark = null; }
+      if (this.canControl) { e.preventDefault(); this.path = []; this.pending = null; }
     }
   }
 
@@ -224,40 +282,13 @@ WS.MapView = class {
     return false;
   }
 
-  screenToTile(e) {
-    const st = this.game.stage;
-    const r = st.canvas.getBoundingClientRect();
-    const wx = (e.clientX - r.left) / st.scale + this.cam.x;
-    const wy = (e.clientY - r.top) / st.scale + this.cam.y;
-    return [Math.floor(wx / this.T), Math.floor(wy / this.T), wx, wy];
-  }
-
-  onTap(e) {
-    if (!this.canControl) return;
-    let [tx, ty, wx, wy] = this.screenToTile(e);
-    // 캐릭터는 머리가 위 칸까지 올라오므로, 위 칸을 눌러도 그 캐릭터로 인식
-    let npc = this.npcAt(tx, ty) || this.npcAt(tx, ty + 1);
-    let obj = !npc && this.objectAt(tx, ty);
-    let target = null;
-    if (npc && this.def.npcs.find(n => n.id === npc.id).interact !== false) target = { kind: 'npc', id: npc.id, ref: npc };
-    else if (obj && obj.interact) target = { kind: 'object', id: obj.id, ref: obj };
-    if (target) {
-      const spots = this.interactSpots(target.ref);
-      const here = spots.find(([sx, sy]) => sx === this.player.x && sy === this.player.y);
-      if (here) { this.player.dir = here[2]; this.interact(target); return; }
-      const path = this.findPath(spots.map(([x, y]) => [x, y]));
-      if (path === null) return;
-      this.path = path;
-      this.pending = { target, spots };
-      this.tapMark = null;
-      return;
-    }
-    if (!this.passable(tx, ty)) return;
-    const path = this.findPath([[tx, ty]]);
-    if (path === null) return;
+  /** 지정한 칸까지 길찾기로 걸어간다 (스크립트 · 테스트용). 도착하면 face 방향을 본다 */
+  walkTo(x, y, face) {
+    const path = this.findPath([[x, y]]);
+    if (path === null) return false;
     this.path = path;
-    this.pending = null;
-    this.tapMark = { x: tx, y: ty, t: 0 };
+    this.pending = face ? { face } : null;
+    return true;
   }
 
   // ---------------- 갱신 ----------------
@@ -281,21 +312,25 @@ WS.MapView = class {
     }
     const p = this.player;
     if (!p.move && this.canControl) {
-      if (this.keys.length) {
-        this.tryStep(p, this.keys[this.keys.length - 1]);
+      const held = this.keys.length ? this.keys[this.keys.length - 1] : this.stickDir;
+      if (held) {
+        this.path = []; this.pending = null;
+        this.tryStep(p, held);
       } else if (this.path.length) {
         const d = this.path.shift();
         if (!this.tryStep(p, d)) { this.path = []; this.pending = null; }
       } else if (this.pending) {
-        const { target, spots } = this.pending;
+        if (this.pending.face) p.dir = this.pending.face;
         this.pending = null;
-        const here = spots.find(([sx, sy]) => sx === p.x && sy === p.y);
-        if (here) { p.dir = here[2]; this.interact(target); }
-      } else {
-        this.tapMark = null;
       }
     }
-    if (!p.move && !this.keys.length) p.walk = 0;
+    if (!p.move && !this.keys.length && !this.stickDir) p.walk = 0;
+    // 조이스틱은 직접 조작할 수 있을 때만 보인다. 조사할 대상 앞이면 조사 버튼이 빛남
+    if (this.pad) {
+      this.pad.classList.toggle('show', this.canControl);
+      this.pad.querySelector('.pad-act').classList.toggle('ready', this.canControl && !!this.facingTarget());
+      if (!this.canControl && this.stickDir) this._pad.release();
+    }
     for (const n of Object.values(this.npcs)) if (!n.move) n.walk = 0;
     this.emotes = this.emotes.filter(em => (em.t += dt) < em.life);
     this.updateCamera(dt);
@@ -374,7 +409,6 @@ WS.MapView = class {
     ctx.save();
     ctx.translate(ox, oy);
     ctx.drawImage(this.base, 0, 0);
-    if (this.tapMark) this.drawTapMark(ctx);
 
     // 오브젝트 · 캐릭터를 아래쪽 기준으로 정렬해서 그린다
     const items = [];
@@ -386,16 +420,6 @@ WS.MapView = class {
     this.drawMarkers(ctx);
     this.drawEmotes(ctx);
     ctx.restore();
-  }
-
-  drawTapMark(ctx) {
-    const m = this.tapMark;
-    const a = 0.45 + 0.3 * Math.sin(this.time * 8);
-    ctx.globalAlpha = a;
-    ctx.strokeStyle = '#fff2f8';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(m.x * this.T + 6, m.y * this.T + 6, this.T - 12, this.T - 12);
-    ctx.globalAlpha = 1;
   }
 
   /** 조사 가능 표시: 해당 오브젝트/인물 위에 작은 반짝이 */

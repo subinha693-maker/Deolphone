@@ -31,17 +31,36 @@
       </button>
     </div>
 
-    <!-- 대화창 -->
+    <!-- 대화창: [초상화][대사창] -->
     <div id="dialogue-layer">
       <div class="choices"></div>
-      <div class="dlg-portrait"><img alt=""></div>
-      <div class="dlg">
-        <div class="dlg-name"></div>
-        <div class="dlg-body">
-          <div class="dlg-text" aria-live="polite"></div>
+      <div class="dlg-row">
+        <div class="dlg-portrait"><img alt=""></div>
+        <div class="dlg">
+          <div class="dlg-name"></div>
+          <div class="dlg-body">
+            <div class="dlg-text" aria-live="polite"></div>
+          </div>
+          <div class="dlg-next" aria-hidden="true"></div>
         </div>
-        <div class="dlg-next" aria-hidden="true"></div>
       </div>
+    </div>
+
+    <!-- 맵 장면 조작: 조이스틱 + 조사 버튼 -->
+    <div id="pad" aria-hidden="true">
+      <div class="pad-base"><div class="pad-knob"></div></div>
+      <button type="button" class="pad-act">조사</button>
+    </div>
+
+    <!-- 이름 입력 -->
+    <div id="name-input" class="overlay">
+      <form class="ni-panel p-frame" autocomplete="off">
+        <h2 class="plate">이름</h2>
+        <p class="ni-q">당신의 이름을 알려 주세요.</p>
+        <input type="text" id="ni-field" maxlength="8" placeholder="이름 (1~8글자)" enterkeyhint="done" spellcheck="false">
+        <p class="ni-err" role="alert"></p>
+        <button type="submit" class="g-btn ni-ok">이 이름으로 한다</button>
+      </form>
     </div>
 
     <!-- 직업 선택 -->

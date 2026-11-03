@@ -132,17 +132,21 @@ button { font-family: inherit; color: inherit; }
   padding: 0 calc(8px + var(--safe-r)) calc(6px + var(--safe-b)) calc(8px + var(--safe-l));
   z-index: 10; pointer-events: none;
 }
-.dlg {
-  pointer-events: auto;
-  position: relative;
+/* [초상화][대사창] 한 줄 */
+.dlg-row {
+  display: flex; align-items: flex-end; gap: clamp(4px, 1vw, 10px);
   margin: 0 auto;
-  width: 100%;
-  max-width: calc(var(--dh) * 1634 / 383 * 1.15);
+  max-width: calc(var(--dh) * 1634 / 383 * 1.15 + var(--dh));
+}
+.dlg {
+  pointer-events: none;   /* 숨어 있을 때 아래쪽 화면 터치를 가로채지 않는다 */
+  position: relative;
+  flex: 1; min-width: 0;
   height: var(--dh);
   opacity: 0; transform: translateY(8px);
   transition: opacity .3s, transform .3s;
 }
-.dlg.show { opacity: 1; transform: none; }
+.dlg.show { opacity: 1; transform: none; pointer-events: auto; }
 /* 프레임: 이름표가 붙은 대화창 */
 .dlg::before {
   content: ''; position: absolute; inset: 0; pointer-events: none;
@@ -225,24 +229,23 @@ button { font-family: inherit; color: inherit; }
 #closeup.show { opacity: 1; transform: none; }
 #closeup img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-/* 초상화: 대화창 오른쪽 위 (원본 화질 일러스트) */
+/* 초상화: 대사창 왼쪽 (원본 화질 일러스트) */
 .dlg-portrait {
-  position: absolute;
-  right: calc(8px + var(--safe-r) + var(--dh) * 120 / 383);
-  bottom: calc(6px + var(--safe-b) + var(--dh) * 330 / 383);
-  width: clamp(84px, 24vh, 240px); aspect-ratio: 1;
-  padding: 4px;
+  position: relative; flex: 0 0 auto;
+  width: calc(var(--dh) * 0.92); height: calc(var(--dh) * 0.92);
+  margin-bottom: calc(var(--dh) * 0.02);
+  padding: 3px;
   background: var(--paper);
   border: 3px solid var(--plum-d);
   box-shadow: inset 0 0 0 2px var(--rose), 0 4px 0 rgba(62, 42, 59, .15);
-  opacity: 0; transform: translateY(6px); transition: opacity .3s, transform .3s;
+  opacity: 0; transform: translateY(6px); transition: opacity .25s, transform .25s;
   pointer-events: none;
 }
 .dlg-portrait.show { opacity: 1; transform: none; }
 .dlg-portrait img { display: block; width: 100%; height: 100%; object-fit: cover; border: 1px solid var(--rose-d); }
 .dlg-portrait::after {
-  content: '✦'; position: absolute; left: -10px; top: -12px;
-  font-size: 18px; color: var(--plum-m);
+  content: '✦'; position: absolute; left: -8px; top: -11px;
+  font-size: 16px; color: var(--plum-m);
 }
 
 /* ---------- 선택지 (참고 이미지 2의 버튼) ---------- */
@@ -288,6 +291,68 @@ button { font-family: inherit; color: inherit; }
   border-image: url("../assets/ui/choice_dark.png") 0 237 0 200 fill stretch;
 }
 .choice-btn:disabled { opacity: 1; cursor: default; }
+
+/* ---------- 맵 조작: 조이스틱 ---------- */
+#pad {
+  position: absolute; inset: auto 0 0 0; z-index: 12; pointer-events: none;
+  --pad: clamp(104px, 30vh, 156px);
+  --act: clamp(64px, 18vh, 92px);
+}
+#pad .pad-base, #pad .pad-act { opacity: 0; transition: opacity .25s; pointer-events: none; }
+#pad.show .pad-base, #pad.show .pad-act { opacity: 1; pointer-events: auto; }
+.pad-base {
+  position: absolute;
+  left: calc(18px + var(--safe-l)); bottom: calc(18px + var(--safe-b));
+  width: var(--pad); height: var(--pad); border-radius: 50%;
+  background: radial-gradient(circle, rgba(246, 226, 238, .55), rgba(110, 74, 101, .35));
+  border: 3px solid rgba(62, 42, 59, .75);
+  box-shadow: inset 0 0 0 2px rgba(251, 238, 245, .6);
+  touch-action: none;
+}
+.pad-base::before {   /* 방향 표시 */
+  content: ''; position: absolute; inset: 14%;
+  background:
+    linear-gradient(var(--plum-m), var(--plum-m)) center 0 / 2px 18% no-repeat,
+    linear-gradient(var(--plum-m), var(--plum-m)) center 100% / 2px 18% no-repeat,
+    linear-gradient(var(--plum-m), var(--plum-m)) 0 center / 18% 2px no-repeat,
+    linear-gradient(var(--plum-m), var(--plum-m)) 100% center / 18% 2px no-repeat;
+  opacity: .55;
+}
+.pad-knob {
+  position: absolute; left: 50%; top: 50%;
+  width: 44%; height: 44%; margin: -22% 0 0 -22%; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--paper-2), var(--rose) 70%);
+  border: 3px solid var(--plum-d);
+  box-shadow: 0 3px 0 rgba(62, 42, 59, .3);
+  transform: translate(var(--kx, 0px), var(--ky, 0px));
+}
+.pad-act {
+  position: absolute;
+  right: calc(22px + var(--safe-r)); bottom: calc(26px + var(--safe-b));
+  width: var(--act); height: var(--act); border-radius: 50%;
+  font-family: var(--font); font-weight: 800; font-size: var(--fs-small); letter-spacing: .06em;
+  color: var(--plate-text);
+  background: radial-gradient(circle at 35% 30%, #7a5a72, var(--plate) 70%);
+  border: 3px solid var(--plum-d);
+  box-shadow: inset 0 0 0 2px var(--rose-d), 0 4px 0 rgba(62, 42, 59, .3);
+  cursor: pointer; touch-action: manipulation;
+}
+.pad-act:active, .pad-act.hit { transform: translateY(2px); box-shadow: inset 0 0 0 2px var(--rose-d), 0 2px 0 rgba(62, 42, 59, .3); }
+.pad-act.ready { box-shadow: inset 0 0 0 2px var(--rose-d), 0 0 0 3px #ffe9a8, 0 0 14px #ffe9a8; }
+
+/* ---------- 이름 입력 ---------- */
+#name-input { align-items: flex-start; padding-top: max(6vh, var(--safe-t)); z-index: 38; }
+.ni-panel { width: min(92vw, 440px); padding: 18px 22px 22px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.ni-q { margin: 0; font-size: var(--fs); }
+#ni-field {
+  width: 100%; font: inherit; font-size: calc(var(--fs) * 1.1); text-align: center;
+  color: var(--plum-d); background: #fffafd;
+  border: 2px solid var(--plum-d); box-shadow: inset 0 0 0 2px var(--paper-3);
+  padding: .45em .6em; outline: none;
+  -webkit-user-select: text; user-select: text;
+}
+#ni-field:focus { box-shadow: inset 0 0 0 2px var(--rose), 0 0 0 3px rgba(201, 139, 176, .4); }
+.ni-err { margin: 0; min-height: 1.3em; font-size: var(--fs-small); color: #b0304a; }
 
 /* ---------- 오버레이 공통 ---------- */
 .overlay {
@@ -466,7 +531,14 @@ button { font-family: inherit; color: inherit; }
   .g-btn { min-height: 40px; padding-top: .3em; padding-bottom: .3em; }
   .hud-btn span { display: none; }
   .hud-btn { width: 34px; height: 34px; padding: 0; justify-content: center; }
-  .dlg-portrait { width: clamp(70px, 22vh, 96px); }
+}
+/* 세로로 긴 화면: 대사창 폭을 확보하기 위해 초상화를 대사창 왼쪽 위에 올린다 */
+@media (max-aspect-ratio: 1/1) {
+  .dlg-row { position: relative; }
+  .dlg-portrait {
+    position: absolute; left: 0; bottom: calc(var(--dh) * 0.86);
+    width: clamp(90px, 20vh, 220px); height: clamp(90px, 20vh, 220px);
+  }
 }
 /* 좁은 화면 (세로 태블릿 등) */
 @media (max-width: 640px) {

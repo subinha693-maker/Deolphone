@@ -59,6 +59,8 @@ WS.Game = class {
     document.getElementById('game').addEventListener('click', advance);
     window.addEventListener('keydown', e => {
       if (e.repeat) return;
+      const tag = document.activeElement && document.activeElement.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;   // 이름 입력 중
       const mapView = this.stage.view instanceof WS.MapView ? this.stage.view : null;
       const confirmKey = e.key === ' ' || e.key === 'Enter' || e.key === 'z' || e.key === 'Z';
       // 맵 장면에서는 방향키가 이동이므로 → 키로 대사를 넘기지 않는다

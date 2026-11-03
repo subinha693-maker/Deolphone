@@ -75,7 +75,10 @@ WS.Dialogue = class {
     this.el.box.classList.toggle('narration', isNarration);
     this.el.box.dataset.speaker = charId || '';
     const showName = !isSystem && !isNarration && !!sp.display;
-    this.el.name.textContent = showName ? sp.display : '';
+    // 주인공은 이름을 정한 뒤부터 그 이름으로 표시 ([주인공] · [클레어] 모두)
+    const pname = this.game.state.player.name;
+    const display = charId === 'hero' && pname && sp.display !== '???' ? pname : sp.display;
+    this.el.name.textContent = showName ? display : '';
     this.el.name.classList.toggle('empty', !showName);
 
     const src = ch ? this.portraitFor(charId, sp.expr) : null;

@@ -46,13 +46,17 @@ WS.ScriptRunner = class {
     const job = WS.getJob(run.player.jobId);
     const ability = run.player.abilities[0];
     const vars = {
-      'player.name': run.player.name,
+      'player.name': run.player.name || WS.DEFAULT_PLAYER_NAME,
       'job.name': job ? job.name : '',
       'job.role': job ? job.role : '',
       'ability.name': ability ? ability.name : '',
       'loop': String(run.loop),
     };
-    return text.replace(/\{([\w.]+)\}/g, (m, k) => (k in vars ? vars[k] : m));
+    // {변수} 또는 {변수:이/가} — 조사는 받침에 맞춰 자동 선택
+    return text.replace(/\{([\w.]+)(?::([^}]+))?\}/g, (m, k, josa) => {
+      if (!(k in vars)) return m;
+      return josa ? WS.josa(vars[k], josa) : vars[k];
+    });
   }
 
   async exec(node, alive) {
@@ -164,6 +168,14 @@ WS.ScriptRunner = class {
         // @event 이름  — 현재 장면의 이벤트 진행 기록 (세이브 대상)
         WS.State.sceneData(g.state, g.state.sceneId).events[a0] = true;
         return null;
+      case 'nameinput': {
+        // @nameinput 질문문구  — 주인공 이름을 직접 입력받는다
+        g.ui.dialogue.hide();
+        const name = await g.ui.askName(args || null);
+        if (!alive()) return null;
+        g.state.player.name = name;
+        return null;
+      }
       case 'closeup':
         // @closeup 캐릭터이름 | @closeup off
         if (!a0 || a0 === 'off') g.ui.closeup(null);

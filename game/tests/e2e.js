@@ -36,10 +36,24 @@ async function openGame(browser, viewport) {
 const tapStage = (page) => page.evaluate(() => document.getElementById('game').click());
 const isShown = (page, sel) => page.evaluate(s => document.querySelector(s).classList.contains('show'), sel);
 
-/** 조건이 될 때까지 화면을 탭해 대사 진행 */
+/** 이름 입력 창에 이름을 쓰고 확정 */
+async function fillName(page, name) {
+  await page.waitForFunction(() => document.querySelector('#name-input').classList.contains('show'));
+  await page.fill('#ni-field', name);
+  await page.click('.ni-ok');
+  await page.waitForTimeout(350);
+  await page.click('.cf-yes');
+  await page.waitForTimeout(250);
+}
+
+/** 조건이 될 때까지 화면을 탭해 대사 진행 (이름 입력이 나오면 '클레어' 입력) */
 async function advanceUntil(page, cond, maxTaps = 200) {
   for (let i = 0; i < maxTaps; i++) {
     if (await page.evaluate(cond)) return true;
+    if (await page.evaluate(() => document.querySelector('#name-input').classList.contains('show') && !document.querySelector('#confirm').classList.contains('show'))) {
+      await fillName(page, '클레어');
+      continue;
+    }
     await tapStage(page);
     await page.waitForTimeout(60);
   }
@@ -131,7 +145,7 @@ async function playthrough(browser, jobId, viewport, opts = {}) {
 
   // 대사 순서
   const said = await page.evaluate(() => window.__said);
-  const expected = await page.evaluate(() => WS.parseScript(WS.SCRIPTS.whiteSpace).nodes.filter(n => n.type === 'say').map(n => n.text));
+  const expected = await page.evaluate(() => WS.parseScript(WS.SCRIPTS.whiteSpace).nodes.filter(n => n.type === 'say').map(n => WS.game.runner.interpolate(n.text)));
   check(`${tag} 모든 대사가 올바른 순서로 출력 (${said.length}줄)`, JSON.stringify(said) === JSON.stringify(expected));
 
   check(`${tag} 콘솔 오류 없음`, errors.length === 0, errors.join(' | '));
@@ -170,6 +184,43 @@ async function playthrough(browser, jobId, viewport, opts = {}) {
     await page.waitForTimeout(200);
     const s2 = await page.evaluate(() => ({ open: WS.game.ui.jobSelect.isOpen, modal: WS.game.ui.modals, job: WS.game.state.player.jobId }));
     check('직업 선택 도중 처음부터: 선택 화면 닫히고 초기화', !s2.open && s2.modal === 0 && s2.job === null, JSON.stringify(s2));
+    await page.close();
+  }
+
+  // 2-b) 이름 입력: 안내자의 질문 → 직접 입력, 진행 차단, 검사, 이름표 · 대사 치환
+  {
+    const { page, errors } = await openGame(browser, { width: 844, height: 390 });
+    const reached = await (async () => {
+      for (let i = 0; i < 200; i++) {
+        if (await page.evaluate(() => document.querySelector('#name-input').classList.contains('show'))) return true;
+        await tapStage(page); await page.waitForTimeout(60);
+      }
+      return false;
+    })();
+    const q = await page.evaluate(() => window.__said.slice(-1)[0]);
+    check('이름 입력: 안내자가 이름을 묻고 입력 창이 열림', reached && q.includes('이름은'), q);
+    await page.waitForTimeout(400);
+    for (let i = 0; i < 10; i++) { await page.mouse.click(420, 120); }
+    const blocked = await page.evaluate(() => document.querySelector('#name-input').classList.contains('show') && WS.game.state.player.name === null);
+    check('이름 입력: 입력 전에는 화면을 눌러도 진행되지 않음', blocked);
+    await page.click('.ni-ok');
+    const err = await page.textContent('.ni-err');
+    check('이름 입력: 빈 이름은 안내 문구와 함께 거부', err.includes('입력해'), err);
+    await page.fill('#ni-field', '하늘');
+    await page.click('.ni-ok'); await page.waitForTimeout(350);
+    await page.click('.cf-no'); await page.waitForTimeout(250);
+    const still = await page.evaluate(() => document.querySelector('#name-input').classList.contains('show') && WS.game.state.player.name === null);
+    check('이름 입력: 확인 창에서 "다시 쓸래요" → 다시 입력', still);
+    await page.fill('#ni-field', '하늘');
+    await page.click('.ni-ok'); await page.waitForTimeout(350);
+    await page.click('.cf-yes'); await page.waitForTimeout(600);
+    await tapStage(page); await page.waitForTimeout(300);
+    const r = await page.evaluate(() => ({ name: WS.game.state.player.name, said: window.__said.slice(-1)[0], plate: document.querySelector('.dlg-name').textContent }));
+    check('이름 입력: 이름이 게임 상태에 저장되고 조사까지 맞춰 대사에 반영 ("……하늘이에요.")', r.name === '하늘' && r.said === '……하늘이에요.' && r.plate === '하늘', JSON.stringify(r));
+    await advanceUntil(page, () => document.querySelector('.dlg-name').textContent === '미레유' && WS.game.ui.dialogue.mode === 'waiting', 20);
+    const r2 = await page.evaluate(() => window.__said.slice(-1)[0]);
+    check('이름 입력: 안내자가 정한 이름을 부름', r2.startsWith('하늘.'), r2);
+    check('이름 입력: 콘솔 오류 없음', errors.length === 0, errors.join(' | '));
     await page.close();
   }
 
@@ -399,12 +450,42 @@ B로 옴
     const p4 = await pos();
     check(`${tag} 충돌: 아래쪽 벽 앞에서 멈춤`, p4.y === 6, JSON.stringify(p4));
 
-    // 탭 이동 + 조사: 책상 → 아이템
-    const tapTile = (tx, ty) => page.evaluate(([tx, ty]) => {
-      const v = WS.game.stage.view, st = WS.game.stage, r = st.canvas.getBoundingClientRect();
-      const x = r.left + ((tx + 0.5) * v.T - v.cam.x) * st.scale, y = r.top + ((ty + 0.5) * v.T - v.cam.y) * st.scale;
-      st.canvas.dispatchEvent(new MouseEvent('click', { clientX: x, clientY: y, bubbles: true }));
-    }, [tx, ty]);
+    // 조이스틱: 마우스로 끌어 이동 → 놓으면 멈춤
+    const padShown = await page.evaluate(() => document.querySelector('#pad').classList.contains('show'));
+    check(`${tag} 탐색 중에 조이스틱 · 조사 버튼 표시`, padShown);
+    const box = await page.locator('.pad-base').boundingBox();
+    const pj = await pos();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 - box.height * 0.4, { steps: 3 });
+    await page.waitForTimeout(400);
+    await page.mouse.up();
+    await page.waitForTimeout(500);
+    const pj2 = await pos();
+    await page.waitForTimeout(400);
+    const pj3 = await pos();
+    check(`${tag} 조이스틱 위로 → 위로 이동, 손을 떼면 멈춤`, pj2.y < pj.y && pj2.x === pj.x && pj3.y === pj2.y, JSON.stringify([pj, pj2, pj3]));
+    // 아래쪽 화면(숨은 대화창 자리)이 터치를 막지 않는지
+    const hit = await page.evaluate(() => { const el = document.elementFromPoint(innerWidth / 2, innerHeight - 30); return el && el.closest('.dlg') ? 'dlg' : el && el.id; });
+    check(`${tag} 대화창이 숨어 있을 때 화면 아래쪽을 가로채지 않음`, hit !== 'dlg', hit);
+    // 카펫 아래 칸까지 조이스틱으로 이동
+    const dragTo = async (dx, dy, ms) => {
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(box.x + box.width / 2 + dx * box.width * 0.4, box.y + box.height / 2 + dy * box.height * 0.4, { steps: 3 });
+      await page.waitForTimeout(ms);
+      await page.mouse.up();
+      await page.waitForTimeout(350);
+    };
+    await dragTo(0, 1, 1600);
+    const pDown = await pos();
+    check(`${tag} 조이스틱으로 카펫 아래 줄(맨 아래 칸)까지 이동`, pDown.y === 6, JSON.stringify(pDown));
+
+    const walkTo = async (x, y, face) => {
+      await page.evaluate(([x, y, face]) => WS.game.stage.view.walkTo(x, y, face), [x, y, face]);
+      await page.waitForFunction(([x, y]) => { const v = WS.game.stage.view; return v.player.x === x && v.player.y === y && !v.player.move && !v.path.length && !v.pending; }, [x, y], { timeout: 10000 });
+    };
+    const pressAct = async () => { await page.click('.pad-act'); await page.waitForFunction(() => WS.game.stage.view.mode === 'busy', null, { timeout: 5000 }); };
     const waitIdle = () => page.waitForFunction(() => WS.game.stage.view.mode === 'explore' && WS.game.ui.dialogue.mode === 'idle', null, { timeout: 20000 });
     const finishDialog = async () => {
       for (let i = 0; i < 80; i++) {
@@ -415,32 +496,41 @@ B로 옴
       }
       return false;
     };
-    await tapTile(7, 4);
-    await page.waitForFunction(() => WS.game.stage.view.mode === 'busy', null, { timeout: 8000 });
+    // 책상 앞에서 조사 버튼 → 아이템
+    await walkTo(7, 5, 'up');
+    const ready = await page.evaluate(() => document.querySelector('.pad-act').classList.contains('ready'));
+    check(`${tag} 조사 대상 앞에 서면 조사 버튼이 빛남`, ready);
+    await pressAct();
     await finishDialog();
     let inv = await page.evaluate(() => Object.assign({}, WS.game.state.inventory));
-    check(`${tag} 탭 → 길찾기로 걸어가 책상 조사 → 아이템 획득 (게임 상태 반영)`, inv.handkerchief === 1, JSON.stringify(inv));
-    await page.evaluate(() => WS.game.stage.view.onActionKey());
+    check(`${tag} 조사 버튼으로 책상 조사 → 아이템 획득 (게임 상태 반영)`, inv.handkerchief === 1, JSON.stringify(inv));
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(150);
     await finishDialog();
     inv = await page.evaluate(() => Object.assign({}, WS.game.state.inventory));
     const lastSaid = await page.evaluate(() => window.__said.slice(-1)[0]);
-    check(`${tag} 두 번째 조사: 다른 대사 + 아이템 중복 획득 없음`, inv.handkerchief === 1 && lastSaid.includes('평소와 다를 바 없다'), lastSaid);
+    check(`${tag} 두 번째 조사(Space 키): 다른 대사 + 아이템 중복 획득 없음`, inv.handkerchief === 1 && lastSaid.includes('평소와 다를 바 없다'), lastSaid);
     const seen = await page.evaluate(() => WS.game.stage.view.markerTargets().find(m => m.id === 'desk').state);
     check(`${tag} 조사한 대상의 표시는 옅어짐`, seen === 'seen');
+    // 아무것도 없는 곳을 보고 조사 → 아무 일 없음
+    await walkTo(4, 4, 'down');
+    await page.click('.pad-act');
+    await page.waitForTimeout(300);
+    check(`${tag} 대상이 없는 곳에서 조사 버튼 → 반응 없음`, await page.evaluate(() => WS.game.stage.view.mode === 'explore' && WS.game.ui.dialogue.mode === 'idle'));
 
-    // 나머지 오브젝트 조사 (탭으로)
-    const objs = [['bed', 1, 5], ['bookshelf', 2, 2], ['mirror', 3, 1], ['window', 5, 1], ['door', 8, 1]];
-    for (const [id, tx, ty] of objs) {
+    // 나머지 오브젝트 조사
+    const objs = [['bed', 2, 5, 'left'], ['bookshelf', 2, 3, 'up'], ['mirror', 3, 2, 'up'], ['window', 5, 2, 'up'], ['door', 8, 2, 'up']];
+    for (const [id, x, y, face] of objs) {
       const before = await page.evaluate(() => window.__said.length);
-      await tapTile(tx, ty);
-      await page.waitForFunction(() => WS.game.stage.view.mode === 'busy', null, { timeout: 8000 }).catch(() => {});
+      await walkTo(x, y, face);
+      await pressAct();
       await finishDialog();
       const r = await page.evaluate(([id, before]) => ({ n: window.__said.length - before, c: WS.game.state.scenes.heroRoom.inspected[id] || 0 }), [id, before]);
       check(`${tag} 조사 이벤트: ${id}`, r.n > 0 && r.c === 1, JSON.stringify(r));
     }
 
     // 메이어: 첫 대화 → "조금 더 둘러본다" → 자기소개 반복 없음
-    const talkMayer = async () => { await tapTile(7, 6); await page.waitForFunction(() => WS.game.stage.view.mode === 'busy', null, { timeout: 8000 }); return finishDialog(); };
+    const talkMayer = async () => { await walkTo(6, 6, 'right'); await pressAct(); return finishDialog(); };
     const before = await page.evaluate(() => window.__said.length);
     let r = await talkMayer();
     check(`${tag} 메이어에게 다시 말 걸기 → 선택지`, r === 'choice');

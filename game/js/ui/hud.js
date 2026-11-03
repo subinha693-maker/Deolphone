@@ -38,6 +38,8 @@ WS.UI = class {
     this.statusEl.classList.remove('show');
     this.hidePlaceholderScene();
     this.closeup(null);
+    this.$('#name-input').classList.remove('show');
+    this.nameResolve = null;
     this.toastEl.classList.remove('show');
     this.veilEl.classList.remove('show');
     this.modals = 0;
@@ -95,7 +97,7 @@ WS.UI = class {
     body.innerHTML = `
       <div class="st-portrait"><img src="${run.player.awakened ? job.portrait : WS.CHARACTERS.hero.portrait}" alt=""></div>
       <div class="st-info">
-        <h3>${run.player.name}</h3>
+        <h3>${run.player.name || WS.DEFAULT_PLAYER_NAME}</h3>
         <p class="st-job">${job.name} <small>${job.role}</small></p>
         <p class="st-state">${run.player.awakened ? '각성 완료' : '각성 전'}</p>
         <div class="st-stats">${Object.keys(WS.STAT_LABELS).map(k => `<span>${WS.STAT_LABELS[k]} <b>${s[k]}</b></span>`).join('')}</div>
@@ -143,6 +145,43 @@ WS.UI = class {
     back.onclick = e => { e.stopPropagation(); this.game.scenes.goTo(payload.from, { returning: true }); };
     el.classList.add('show');
     this.pushModal();
+  }
+
+  /**
+   * 이름 입력 → 정한 이름으로 resolve
+   * 규칙: 앞뒤 공백 제외 1~8글자, 기호 { } < > [ ] | 는 쓸 수 없음
+   */
+  askName(question) {
+    const el = this.$('#name-input');
+    const form = el.querySelector('form');
+    const field = el.querySelector('#ni-field');
+    const err = el.querySelector('.ni-err');
+    el.querySelector('.ni-q').textContent = question || '당신의 이름을 알려 주세요.';
+    field.value = '';
+    err.textContent = '';
+    el.classList.add('show');
+    this.pushModal();
+    setTimeout(() => field.focus(), 350);
+    return new Promise(resolve => {
+      this.nameResolve = resolve;
+      form.onclick = e => e.stopPropagation();
+      form.onsubmit = async e => {
+        e.preventDefault();
+        const name = WS.validateName(field.value);
+        if (name.error) { err.textContent = name.error; field.focus(); return; }
+        field.blur();
+        const ok = await this.confirm({
+          title: name.value,
+          body: `「${name.value}」(으)로 하시겠어요?`,
+          yes: '좋아요', no: '다시 쓸래요',
+        });
+        if (!ok || this.nameResolve !== resolve) { if (this.nameResolve === resolve) field.focus(); return; }
+        this.nameResolve = null;
+        el.classList.remove('show');
+        this.popModal();
+        resolve(name.value);
+      };
+    });
   }
 
   /** 큰 그림 클로즈업 (charId 또는 null 로 닫기) */
@@ -199,4 +238,35 @@ WS.toggleFullscreen = async function (forceOn) {
       if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape').catch(() => {});
     }
   } catch (e) { /* 지원하지 않는 환경 */ }
+};
+
+/** 이름 검사 → { value } 또는 { error } */
+WS.validateName = function (raw) {
+  const v = String(raw || '').trim().replace(/\s+/g, ' ');
+  if (!v) return { error: '이름을 입력해 주세요.' };
+  if ([...v].length > 8) return { error: '8글자까지 쓸 수 있어요.' };
+  if (/[{}<>\[\]|]/.test(v)) return { error: '쓸 수 없는 기호가 있어요.' };
+  return { value: v };
+};
+
+/**
+ * 받침에 맞는 조사 붙이기:  WS.josa('클레어', '이/가') → '클레어가'
+ * 쓸 수 있는 쌍: 이/가, 을/를, 은/는, 과/와, 아/야, 이에요/예요, 으로/로, 이/(없음)
+ */
+WS.josa = function (word, pair) {
+  const [withB, withoutB = ''] = pair.split('/');
+  const last = word.charCodeAt(word.length - 1);
+  let batchim = false, rieul = false;
+  if (last >= 0xac00 && last <= 0xd7a3) {
+    const jong = (last - 0xac00) % 28;
+    batchim = jong !== 0;
+    rieul = jong === 8;
+  } else if (/[0-9]$/.test(word)) {
+    batchim = /[013678]$/.test(word);
+    rieul = /[178]$/.test(word);
+  } else {
+    batchim = /[bcdgklmnprt]$/i.test(word);
+  }
+  if (withB === '으로' && rieul) return word + withoutB;   // ㄹ 받침 + 로
+  return word + (batchim ? withB : withoutB);
 };

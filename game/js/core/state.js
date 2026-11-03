@@ -5,6 +5,9 @@
  */
 window.WS = window.WS || {};
 
+/** 이름을 정하기 전 · 단독 테스트에서 쓰는 기본 이름 */
+WS.DEFAULT_PLAYER_NAME = '클레어';
+
 WS.State = {
   createRun(meta) {
     return {
@@ -17,7 +20,7 @@ WS.State = {
       position: null,       // 맵 장면에서의 주인공 위치 { sceneId, x, y, dir }
       scenes: {},           // 장면별 진행 { [장면ID]: { inspected: {오브젝트ID: 횟수}, events: {이벤트: true} } }
       player: {
-        name: '클레어',     // 대사의 {player.name} — 이름 입력 기능이 생기면 여기에 저장
+        name: null,         // 흰 공간에서 직접 입력 (@nameinput). 입력 전에는 WS.DEFAULT_PLAYER_NAME
         jobId: null,
         awakened: false,
         stats: null,
@@ -73,6 +76,7 @@ WS.State = {
     const run = this.createRun(meta);
     this.applyJob(run, jobId || WS.JOBS[0].id);
     this.awaken(run);
+    run.player.name = WS.DEFAULT_PLAYER_NAME;
     run.flags.test_mode = true;
     return run;
   },
