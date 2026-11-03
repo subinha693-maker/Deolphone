@@ -13,8 +13,11 @@ WS.State = {
       sceneId: null,
       flags: {},
       choices: {},          // 선택지 ID → 고른 값 기록
+      inventory: {},        // 아이템 ID → 개수 (items.js)
+      position: null,       // 맵 장면에서의 주인공 위치 { sceneId, x, y, dir }
+      scenes: {},           // 장면별 진행 { [장면ID]: { inspected: {오브젝트ID: 횟수}, events: {이벤트: true} } }
       player: {
-        name: '주인공',
+        name: '클레어',     // 대사의 {player.name} — 이름 입력 기능이 생기면 여기에 저장
         jobId: null,
         awakened: false,
         stats: null,
@@ -45,5 +48,32 @@ WS.State = {
         JSON.parse(JSON.stringify(def))));
     }
     run.player.awakened = true;
+  },
+
+  /** 장면별 진행 데이터 (없으면 만든다) */
+  sceneData(run, sceneId) {
+    if (!run.scenes[sceneId]) run.scenes[sceneId] = { inspected: {}, events: {} };
+    return run.scenes[sceneId];
+  },
+
+  /** 아이템 획득. unique 아이템은 이미 있으면 false (중복 획득 방지) */
+  giveItem(run, itemId, count = 1) {
+    const def = WS.ITEMS[itemId];
+    if (!def) throw new Error('아이템 데이터가 없습니다: ' + itemId);
+    const have = run.inventory[itemId] || 0;
+    if (def.unique !== false && have > 0) return false;
+    run.inventory[itemId] = have + count;
+    return true;
+  },
+
+  hasItem(run, itemId) { return (run.inventory[itemId] || 0) > 0; },
+
+  /** 테스트용: 장면을 단독 실행할 때 직업 선택 · 각성까지 끝난 상태를 만든다 */
+  createTestRun(meta, jobId) {
+    const run = this.createRun(meta);
+    this.applyJob(run, jobId || WS.JOBS[0].id);
+    this.awaken(run);
+    run.flags.test_mode = true;
+    return run;
   },
 };

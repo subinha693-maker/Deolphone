@@ -1,4 +1,16 @@
-# 흰 공간 — 프롤로그 (플레이 가능 프로토타입)
+# 마법소녀 RPG — 장면별 프로토타입
+
+장면을 하나씩 독립적으로 만들고 나중에 이어 붙이는 방식으로 개발한다.
+
+| 장면 | 파일 | 단독 실행 |
+|---|---|---|
+| 흰 공간 (프롤로그) | `js/scenes/whiteSpace.js`, 대사 `js/data/script.js` | `index.html` |
+| 주인공의 방 | `js/scenes/heroRoom/` (map · script · scene) | `index.html#room` 또는 `index.html?scene=heroRoom&job=ruby` |
+
+시작 화면 아래 **장면 단독 테스트**에서도 장면과 의상(직업)을 골라 바로 시작할 수 있다.
+단독 테스트는 직업 선택 · 각성까지 끝난 새 게임 상태로 시작한다.
+
+# 흰 공간 — 프롤로그
 
 어두운 분위기의 마법소녀풍 2D 픽셀 아트 게임의 첫 구간.
 게임 시작 → 미레유와의 대화 → 직업 선택 → 각성 → 흰 공간을 떠나기 직전까지 플레이할 수 있다.
@@ -48,7 +60,7 @@ game/
 │  ├─ portraits/           대화창 · 상태창 초상화 (원본 화질 크롭, 자동 생성)
 │  ├─ jobs/                직업 카드 일러스트 (원본 화질, 자동 생성)
 │  └─ ui/                  대화창 · 이름표 · 선택지 버튼 · 구분선 (참고 UI 이미지에서 잘라 냄)
-├─ tools/dots.py           쯔꾸르풍 SD 도트 생성기 (캐릭터별 draw_ 함수) → js/render/dots.js, tools/dots_preview.png
+├─ tools/dots.py           쯔꾸르 MV 규격 도트 생성기 (캐릭터별 클래스) → js/render/dots.js, tools/dots_preview.png
 ├─ tools/make_art.py       원본 일러스트 → 초상화 · 직업 카드 (크롭 위치 조정 가능)
 ├─ tools/extract_ui.py     참고 UI 이미지 → 투명 배경 UI 조각 (글자 지움)
 └─ tests/e2e.js            자동 플레이 테스트 (Playwright)
@@ -83,12 +95,40 @@ game/
 ## 직업 수정하기
 
 - 이름 · 소개 · 성향 · 장점 · 색 · 각성 파티클: `js/data/jobs.js`
-- 변신 후 도트 모습: `tools/dots.py` 의 `draw_<직업ID>` 수정 후 `python3 tools/dots.py`
+- 변신 후 도트 모습: `tools/dots.py` 의 캐릭터 클래스 수정 후 `python3 tools/dots.py`
 - 능력치 · 능력 수치(임시): `js/data/balance.js`
 - 새 직업 추가: `jobs.js` 에 항목 추가 + `balance.js` 의 `STATS`/`ABILITIES` 추가 +
   `assets/source/<id>.jpg` 를 넣고 `tools/make_art.py` 목록에 추가 후 실행 + `tools/dots.py` 에 도트 추가
 - 특정 회차·엔딩 이후에만 열리게: `unlock: { type: 'loopAtLeast', value: 2 }` 등 (`progression.js` 참고)
 - 설정이 확정되면 `draft: true` 를 지우면 화면의 '임시' 표시가 사라진다
+
+## 주인공의 방 (쯔꾸르식 맵 장면)
+
+- 시작 이벤트: 어둠에서 밝아짐 → 침대에서 깨어남 → 의상 확인 → 그림자처럼 흐릿하던 메이어가 드러남(클로즈업) → 첫 대화
+- 자유 조사: 이동(방향키 · WASD, 또는 화면 탭 → 길찾기), 조사(Space · Enter · Z, 또는 대상을 탭)
+- 조사 대상: 침대 · 책상(손수건 획득, 임시 아이템) · 창문 · 거울 · 책장 · 출입문 · 메이어. 장식(화분 · 러그)에는 표시 없음
+- 메이어: 다시 말을 걸면 자기소개를 반복하지 않고 선택지 → "이야기를 계속 듣는다" 로 받은 "다음 스크립트" 진행
+- 종료 지점: 다음 스크립트 끝 "다음으로" 버튼 → `heroRoom` 의 `next`(`heroRoom_next`, 미구현) → 임시 연결 지점 화면 (돌아가기 가능)
+- 흰 공간 → 방 연결: 아직 하지 않음. 연결하려면 `js/scenes/whiteSpace.js` 의 `next: 'chapter1'` 을 `'heroRoom'` 으로 바꾸면 된다
+
+| 고칠 것 | 파일 |
+|---|---|
+| 대사 · 조사 문구 · 표정 | `js/scenes/heroRoom/script.js` (`=== 섹션` 단위, 표정은 `[클레어:놀람]`) |
+| 가구 배치 · 충돌 · 조사 대상 · 메이어 위치 | `js/scenes/heroRoom/map.js` |
+| 아이템 | `js/data/items.js` |
+| 표정 이름 ↔ 그림 | `js/data/characters.js`, 크롭 위치는 `tools/make_art.py` |
+
+공통 시스템 (다른 맵 장면에서도 그대로 사용):
+`js/map/mapView.js`(이동 · 충돌 · 길찾기 · 조사 표시 · 카메라), `js/map/mapCommands.js`(`@face @walk @wake @reveal @camera @emote`),
+스크립트 공통 명령 `@give 아이템` `@event 이름` `@closeup 캐릭터|off`, 화자 표정 `[이름:표정]` · 별칭 `[???|메이어:기본]`.
+
+세이브 대상 데이터(`game.state`, 화면과 분리): `sceneId`, `position {sceneId,x,y,dir}`, `inventory`,
+`scenes.<장면>.inspected`(조사 횟수) · `.events`(진행 이벤트), `choices`, `flags`, `player`.
+
+## 도트 (쯔꾸르 MV 규격)
+
+`tools/dots.py` 가 48x48 칸, 4방향(정면 · 옆 · 뒤, 오른쪽은 좌우 반전) x 3프레임 걷기 도트를 생성한다.
+캐릭터: 클레어(평상복) · 메이어 · 미레유(정면만) · 변신 5종. 미리보기 `tools/dots_preview.png`.
 
 ## 장면을 따로 만들어 이어 붙이기
 

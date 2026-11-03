@@ -184,7 +184,7 @@ button { font-family: inherit; color: inherit; }
   top: calc(var(--dh) * 125 / 383); bottom: calc(var(--dh) * 50 / 383);
   align-items: center; justify-content: center;
 }
-.dlg.system .dlg-text { flex: none; text-align: center; letter-spacing: .08em; }
+.dlg.system .dlg-text { flex: 0 1 auto; max-width: 100%; max-height: 100%; text-align: center; letter-spacing: .04em; }
 .dlg.system .dlg-text::before, .dlg.system .dlg-text::after { content: ' ✦ '; color: var(--rose-d); font-size: .7em; vertical-align: middle; }
 .dlg-next {
   position: absolute;
@@ -197,6 +197,33 @@ button { font-family: inherit; color: inherit; }
 }
 .dlg-next.show { opacity: 1; animation: nextBob 1s ease-in-out infinite; }
 @keyframes nextBob { 50% { transform: translateY(3px); opacity: .55; } }
+
+/* 나레이션: 이름표 없는 대화창, 왼쪽 정렬 */
+.dlg.narration::before {
+  top: calc(var(--dh) * 50 / 383);
+  border-width: 0 calc(var(--dh) * 216 / 383) 0 calc(var(--dh) * 330 / 383);
+  border-image: url("../assets/ui/dialog_plain.png") 0 216 0 330 fill stretch;
+}
+.dlg.narration .dlg-name { display: none; }
+.dlg.narration .dlg-body {
+  left: calc(var(--dh) * 205 / 383); right: calc(var(--dh) * 110 / 383);
+  top: calc(var(--dh) * 120 / 383); bottom: calc(var(--dh) * 48 / 383);
+  align-items: center;
+}
+.dlg.narration .dlg-text { flex: 1; color: var(--plum-m); }
+
+/* 클로즈업: 큰 그림이 화면 왼쪽에서 떠오른다 */
+#closeup {
+  position: absolute; z-index: 9; pointer-events: none;
+  left: calc(4vw + var(--safe-l)); bottom: calc(var(--dh) * 0.55);
+  height: min(78vh, 720px); aspect-ratio: 360 / 729;
+  opacity: 0; transform: translateX(-16px); transition: opacity .5s, transform .5s;
+  border: 3px solid var(--plum-d);
+  box-shadow: 0 0 0 3px var(--paper), 0 0 0 5px var(--rose-d), 0 10px 24px rgba(30, 16, 28, .35);
+  background: var(--plum-d);
+}
+#closeup.show { opacity: 1; transform: none; }
+#closeup img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 /* 초상화: 대화창 오른쪽 위 (원본 화질 일러스트) */
 .dlg-portrait {
@@ -405,6 +432,16 @@ button { font-family: inherit; color: inherit; }
 }
 #start-gate p { color: #b9a4b3; font-size: var(--fs-small); letter-spacing: .4em; animation: breathe 2.4s ease-in-out infinite; }
 #start-gate.hide { opacity: 0; pointer-events: none; }
+.gate-dev {
+  position: absolute; left: 50%; bottom: calc(14px + var(--safe-b)); transform: translateX(-50%);
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px;
+  font-size: 12px; color: #b9a4b3; cursor: default; width: max-content; max-width: 94vw;
+}
+.gate-dev select, .gate-dev button {
+  font: inherit; font-size: 12px; color: var(--plum); background: var(--paper-2);
+  border: 1px solid var(--rose); padding: 3px 6px; min-height: 30px;
+}
+.gate-dev button { background: var(--plate); color: var(--plate-text); border-color: var(--plum-d); cursor: pointer; padding: 3px 12px; }
 @keyframes breathe { 50% { opacity: .35; } }
 
 #rotate-hint {

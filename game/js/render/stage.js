@@ -24,6 +24,8 @@ WS.Stage = class {
 
   reset(opts = {}) {
     this.fx.reset();
+    this.setView(null);
+    this.fadeColor = '#fbfbfa';
     this.backdrop = null;
     this.props = true;
     // 처음 시작할 때만 흰 화면에서 페이드인. 다른 장면에서 넘어오면 화면 전환이 이미 덮고 있다
@@ -42,9 +44,18 @@ WS.Stage = class {
     this.steamTimer = 0;
   }
 
+  /** 맵 장면 등 다른 화면을 무대에 올린다 (view: { update(dt), draw(ctx,W,H), scaleFor(vw,vh) }) */
+  setView(view) {
+    if (this.view === view) return;
+    this.view = view || null;
+    this.resize();
+  }
+
   resize() {
     const vw = window.innerWidth, vh = window.innerHeight;
-    this.scale = Math.max(1, Math.floor(Math.min(vw / 240, vh / 150)));
+    this.scale = this.view && this.view.scaleFor
+      ? this.view.scaleFor(vw, vh)
+      : Math.max(1, Math.floor(Math.min(vw / 240, vh / 150)));
     this.W = Math.ceil(vw / this.scale);
     this.H = Math.ceil(vh / this.scale);
     this.canvas.width = this.W;
@@ -186,6 +197,7 @@ WS.Stage = class {
       }
     }
     this.fx.update(dt);
+    if (this.view) this.view.update(dt);
   }
 
   loop(now) {
@@ -200,6 +212,12 @@ WS.Stage = class {
 
   draw() {
     const { ctx, W, H } = this;
+    if (this.view) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      this.view.draw(ctx, W, H);
+      this.drawOverlays(ctx, W, H);
+      return;
+    }
     const L = this.layout();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     if (this.backdrop) this.backdrop(ctx, W, H, this); else this.drawBackground(ctx, W, H);
@@ -217,10 +235,15 @@ WS.Stage = class {
     this.fx.drawWorld(ctx);
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.drawOverlays(ctx, W, H);
+  }
+
+  /** 섬광 · 페이드 (fadeColor: 흰 공간은 흰색, 방 장면은 어둠) */
+  drawOverlays(ctx, W, H) {
     this.fx.drawScreen(ctx, W, H);
     if (this.whiteout > 0.001) {
       ctx.globalAlpha = this.whiteout;
-      ctx.fillStyle = '#fbfbfa';
+      ctx.fillStyle = this.fadeColor;
       ctx.fillRect(0, 0, W, H);
       ctx.globalAlpha = 1;
     }
@@ -253,8 +276,8 @@ WS.Stage = class {
 
   drawChair(ctx, L) {
     // 붉은 벨벳 등받이 + 금색 틀 (미레유가 앉은 의자)
-    const w = 30, x0 = L.tableX - 15;
-    const top = L.tableTop - 40, bottom = L.tableTop + 1;
+    const w = 36, x0 = L.tableX - 18;
+    const top = L.tableTop - 52, bottom = L.tableTop + 1;
     const R = '#b3263a', r = '#86182a', h = '#d2475a', Y = '#d6b25e', y = '#8e6a2c';
     for (let yy = top; yy < bottom; yy++) {
       const k = yy - top;
@@ -271,37 +294,17 @@ WS.Stage = class {
       for (let xx = x0 + 7; xx < x0 + w - 5; xx += 8) ctx.fillRect(xx + (((yy - top) / 7) % 2 ? 4 : 0), yy, 1, 1);
     }
     // 꼭대기 장식
-    ctx.fillStyle = Y; ctx.fillRect(x0 + 14, top - 3, 2, 3); ctx.fillRect(x0 + 13, top - 2, 4, 1);
-    ctx.fillStyle = '#e0283c'; ctx.fillRect(x0 + 14, top - 2, 2, 1);
+    ctx.fillStyle = Y; ctx.fillRect(x0 + 17, top - 3, 2, 3); ctx.fillRect(x0 + 16, top - 2, 4, 1);
+    ctx.fillStyle = '#e0283c'; ctx.fillRect(x0 + 17, top - 2, 2, 1);
   }
 
-  dotSprite(id, frame) {
-    const key = 'dot:' + id + ':' + frame;
-    const cache = WS.SpriteCache.cache;
-    if (cache.has(key)) return cache.get(key);
-    const d = WS.DOTS[id];
-    const rows = d.frames[frame] || d.frames.idle;
-    const codes = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!#$%&()*+,-/:;<=>?@[]^_{|}~';
-    const c = document.createElement('canvas');
-    c.width = d.w; c.height = d.h;
-    const g = c.getContext('2d');
-    rows.forEach((row, y) => {
-      for (let x = 0; x < row.length; x++) {
-        const ch = row[x];
-        if (ch === '.') continue;
-        g.fillStyle = d.palette[codes.indexOf(ch)];
-        g.fillRect(x, y, 1, 1);
-      }
-    });
-    cache.set(key, c);
-    return c;
-  }
+  dotSprite(id, frame) { return WS.getDot(id, frame); }
 
   drawMireille(ctx, L) {
     const img = this.dotSprite('mireille', 'idle');
     ctx.globalAlpha = this.mireilleAlpha;
     // 허리가 테이블 높이에 오도록 (아랫부분은 식탁보에 가려 앉아 있는 것처럼 보인다). 숨도 쉬지 않는다.
-    ctx.drawImage(img, L.tableX - img.width / 2, L.tableTop - 30);
+    ctx.drawImage(img, L.tableX - img.width / 2, L.tableTop - 42);
     ctx.globalAlpha = 1;
   }
 
@@ -358,7 +361,7 @@ WS.Stage = class {
     ctx.fillRect(L.heroX - 6, L.floorY + 1, 12, 1);
     // 숨쉬기: 상반신만 1px 내려앉았다 돌아온다 (발은 바닥에 고정)
     const breathe = this.frozen ? 0 : (Math.sin(this.time * 2.2) > 0.6 ? 1 : 0);
-    const x = L.heroX - img.width / 2, y = L.floorY - img.height + 1, split = 24;
+    const x = L.heroX - img.width / 2, y = L.floorY - img.height + 1, split = 31;
     ctx.drawImage(img, 0, split, img.width, img.height - split, x, y + split, img.width, img.height - split);
     ctx.drawImage(img, 0, 0, img.width, split, x, y + breathe, img.width, split);
   }

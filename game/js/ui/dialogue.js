@@ -24,6 +24,7 @@ WS.Dialogue = class {
   }
 
   reset() {
+    this.expr = {};
     this.token = (this.token || 0) + 1;   // 진행 중인 타이핑 타이머 무효화
     clearTimeout(this.timer);
     this.mode = 'idle';
@@ -42,26 +43,47 @@ WS.Dialogue = class {
 
   get waitingForInput() { return this.mode === 'typing' || this.mode === 'waiting'; }
 
-  say(speakerName, text) {
-    const charId = speakerName ? WS.findCharacterId(speakerName) : null;
-    const ch = charId ? WS.CHARACTERS[charId] : null;
-    const isSystem = ch && ch.kind === 'system';
+  /** 장면이 바뀔 때: 캐릭터별로 유지하던 표정 초기화 */
+  resetExpressions() { this.expr = {}; }
 
-    this.el.box.classList.toggle('system', !!isSystem || !speakerName);
-    this.el.portrait.classList.toggle('show', !!ch && !isSystem);
-    this.el.box.dataset.speaker = charId || '';
-    this.el.name.textContent = isSystem ? '' : (speakerName || '');
-    this.el.name.classList.toggle('empty', isSystem || !speakerName);
-
-    if (ch && !isSystem) {
-      let src = ch.portrait;
-      const run = this.game.state;
-      if (ch.usesJobPortrait && run.player.awakened) {
-        const job = WS.getJob(run.player.jobId);
-        if (job) src = job.portrait;
-      }
-      if (this.el.portraitImg.getAttribute('src') !== src) this.el.portraitImg.src = src;
+  /** 화자 · 표정에 맞는 초상화 경로 (없으면 null) */
+  portraitFor(charId, expr) {
+    const ch = WS.CHARACTERS[charId];
+    if (!ch || ch.kind) return null;
+    this.expr = this.expr || {};
+    if (expr) this.expr[charId] = expr;
+    const e = this.expr[charId];
+    if (e && ch.expressions && ch.expressions[e]) return ch.expressions[e];
+    if (e && ch.expressions) console.warn('[dialogue] 없는 표정:', charId, e);
+    const run = this.game.state;
+    if (ch.usesJobPortrait && run.player.awakened) {
+      const job = WS.getJob(run.player.jobId);
+      if (job) return job.portrait;
     }
+    return ch.portrait;
+  }
+
+  say(speakerName, text) {
+    const sp = WS.parseSpeaker(speakerName);
+    const charId = sp.id;
+    const ch = charId ? WS.CHARACTERS[charId] : null;
+    const kind = ch ? ch.kind : (speakerName ? null : 'narration');
+    const isSystem = kind === 'system';
+    const isNarration = kind === 'narration';
+
+    this.el.box.classList.toggle('system', isSystem);
+    this.el.box.classList.toggle('narration', isNarration);
+    this.el.box.dataset.speaker = charId || '';
+    const showName = !isSystem && !isNarration && !!sp.display;
+    this.el.name.textContent = showName ? sp.display : '';
+    this.el.name.classList.toggle('empty', !showName);
+
+    const src = ch ? this.portraitFor(charId, sp.expr) : null;
+    this.el.portrait.classList.toggle('show', !!src);
+    if (src && this.el.portraitImg.getAttribute('src') !== src) this.el.portraitImg.src = src;
+
+    // 인물 대사를 감싼 큰따옴표는 이름표가 있으므로 화면에서는 생략
+    if (showName) text = text.replace(/^[“"](.*)[”"]$/s, '$1');
 
     this.el.box.classList.add('show');
     this.full = text;

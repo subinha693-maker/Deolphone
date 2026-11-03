@@ -54,6 +54,18 @@ WS.defineScriptScene = function (id, opts) {
   });
 };
 
+/** 아직 구현되지 않은 장면 ID 로 이동할 때 쓰는 임시 장면 */
+WS.placeholderScene = function (id) {
+  return {
+    id, placeholder: true,
+    enter(game, payload) {
+      game.state.sceneId = id;
+      game.ui.showPlaceholderScene(game.state, Object.assign({ missing: id }, payload));
+    },
+    exit(game) { game.ui.hidePlaceholderScene(); },
+  };
+};
+
 WS.SceneManager = class {
   constructor(game) {
     this.game = game;
@@ -61,7 +73,10 @@ WS.SceneManager = class {
     this.busy = false;
   }
 
-  get currentScene() { return this.current ? WS.SCENES[this.current] : null; }
+  get currentScene() {
+    if (!this.current) return null;
+    return WS.SCENES[this.current] || (this._ph && this._ph.id === this.current ? this._ph : null);
+  }
 
   /** 이 장면이 끝나면 갈 다음 장면 ID (장면 정의의 next) */
   get nextId() { const s = this.currentScene; return s ? s.next : null; }
@@ -79,12 +94,8 @@ WS.SceneManager = class {
   /** 흰빛 전환 후 장면 이동 */
   async goTo(id, payload) {
     if (this.busy) return;
-    const scene = WS.SCENES[id];
-    if (!scene) {
-      console.error('없는 장면:', id);
-      this.game.ui.toast(`장면 「${id}」 이(가) 아직 없습니다.`, true);
-      return;
-    }
+    // 아직 만들지 않은 장면 → 임시 연결 지점 화면 (게임 상태를 보여 주고 되돌아갈 수 있음)
+    const scene = WS.SCENES[id] || WS.placeholderScene(id);
     this.busy = true;
     try {
       const from = this.current;
@@ -92,6 +103,7 @@ WS.SceneManager = class {
       const prev = this.currentScene;
       if (prev && prev.exit) prev.exit(this.game);
       this.current = id;
+      this._ph = scene.placeholder ? scene : null;
       scene.enter(this.game, Object.assign({ from }, payload || {}));
       await this.game.ui.veil(false, 700);
     } finally {

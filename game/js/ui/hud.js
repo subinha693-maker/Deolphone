@@ -37,6 +37,7 @@ WS.UI = class {
     if (this.confirmResolve) { const r = this.confirmResolve; this.confirmResolve = null; r(false); }
     this.statusEl.classList.remove('show');
     this.hidePlaceholderScene();
+    this.closeup(null);
     this.toastEl.classList.remove('show');
     this.veilEl.classList.remove('show');
     this.modals = 0;
@@ -102,6 +103,10 @@ WS.UI = class {
         ${run.player.abilities.length
           ? run.player.abilities.map(a => `<div class="st-ability"><b>「${a.name}」</b> Lv.${a.level}<p>${a.desc}</p><small>마나 ${a.cost} · 대기 ${a.cooldown}턴</small></div>`).join('')
           : '<p class="muted">아직 깨어난 능력이 없습니다.</p>'}
+        <h4>소지품</h4>
+        ${Object.keys(run.inventory).length
+          ? Object.keys(run.inventory).map(id => `<div class="st-ability"><b>${WS.ITEMS[id].name}</b> ×${run.inventory[id]}<p>${WS.ITEMS[id].desc}</p></div>`).join('')
+          : '<p class="muted">아무것도 가지고 있지 않습니다.</p>'}
       </div>`;
     this.statusEl.classList.add('show');
     this.pushModal();
@@ -124,13 +129,29 @@ WS.UI = class {
   showPlaceholderScene(run, payload) {
     const job = WS.getJob(run.player.jobId);
     const el = this.placeholderEl;
+    const inv = Object.keys(run.inventory || {}).map(id => (WS.ITEMS[id] ? WS.ITEMS[id].name : id) + ' ×' + run.inventory[id]);
+    el.querySelector('.ns-title').textContent = payload.missing ? `「${payload.missing}」` : '다음 장면';
     el.querySelector('.ns-summary').innerHTML = `
       <li>직업: <b>${job ? job.name : '없음'}</b></li>
       <li>능력: <b>${run.player.abilities.map(a => a.name).join(', ') || '없음'}</b></li>
+      <li>소지품: <b>${inv.join(', ') || '없음'}</b></li>
       <li>회차: <b>${run.loop}</b> · 플래그: <b>${Object.keys(run.flags).join(', ') || '없음'}</b></li>
       <li>이전 장면: <b>${payload.from || '-'}</b></li>`;
+    // 이전 장면으로 돌아가기 (게임 상태는 그대로 유지)
+    const back = el.querySelector('.ns-back');
+    back.hidden = !(payload.missing && payload.from);
+    back.onclick = e => { e.stopPropagation(); this.game.scenes.goTo(payload.from, { returning: true }); };
     el.classList.add('show');
     this.pushModal();
+  }
+
+  /** 큰 그림 클로즈업 (charId 또는 null 로 닫기) */
+  closeup(charId) {
+    const el = this.$('#closeup');
+    const ch = charId && WS.CHARACTERS[charId];
+    if (!ch || !ch.closeup) { el.classList.remove('show'); return; }
+    el.querySelector('img').src = ch.closeup;
+    el.classList.add('show');
   }
 
   hidePlaceholderScene() {

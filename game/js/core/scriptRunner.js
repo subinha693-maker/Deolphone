@@ -152,11 +152,55 @@ WS.ScriptRunner = class {
         await g.scenes.goTo(a0, { from });
         return null;
       }
-      default:
+      case 'give': {
+        // @give 아이템ID  — 이미 가진 고유 아이템이면 다시 주지 않는다
+        const item = WS.ITEMS[a0];
+        if (!item) throw new Error('아이템 데이터가 없습니다: ' + a0);
+        if (WS.State.giveItem(g.state, a0)) g.ui.toast(`「${item.name}」을(를) 얻었다`);
+        g.ui.hud.refresh();
+        return null;
+      }
+      case 'event':
+        // @event 이름  — 현재 장면의 이벤트 진행 기록 (세이브 대상)
+        WS.State.sceneData(g.state, g.state.sceneId).events[a0] = true;
+        return null;
+      case 'closeup':
+        // @closeup 캐릭터이름 | @closeup off
+        if (!a0 || a0 === 'off') g.ui.closeup(null);
+        else g.ui.closeup(WS.findCharacterId(a0) || a0);
+        return null;
+      default: {
+        // 장면 · 맵 시스템이 등록한 명령 (WS.SCRIPT_COMMANDS)
+        const ext = WS.SCRIPT_COMMANDS[name];
+        if (ext) return ext(g, args.split(/\s+/).filter(Boolean), alive);
         console.warn('[script] 알 수 없는 명령:', name);
         return null;
+      }
     }
   }
 };
 
 WS.sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/** 장면 · 시스템별 추가 스크립트 명령: WS.SCRIPT_COMMANDS.이름 = async (game, args, alive) => 점프할라벨|null */
+WS.SCRIPT_COMMANDS = WS.SCRIPT_COMMANDS || {};
+
+/**
+ * 한 파일에 여러 스크립트를 섹션으로 나눠 쓰기
+ *   === 섹션이름
+ *   ...대사...
+ * → { 섹션이름: '...대사...' }
+ */
+WS.splitSections = function (text) {
+  const out = {};
+  let name = null, buf = [];
+  for (const line of text.split(/\r?\n/)) {
+    const m = line.match(/^===\s*(\S+)/);
+    if (m) {
+      if (name) out[name] = buf.join('\n');
+      name = m[1]; buf = [];
+    } else if (name) buf.push(line);
+  }
+  if (name) out[name] = buf.join('\n');
+  return out;
+};

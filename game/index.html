@@ -85,18 +85,28 @@
     <!-- 다음 장면 (미구현 자리 표시) -->
     <div id="next-scene" class="overlay">
       <div class="ns-panel p-frame">
-        <h2 class="plate">다음 장면</h2>
-        <p class="muted">흰 공간 너머의 장면은 아직 구현되지 않았습니다.<br>아래는 다음 장면으로 전달된 게임 상태입니다.</p>
+        <h2 class="plate ns-title">다음 장면</h2>
+        <p class="muted">이 장면은 아직 구현되지 않은 임시 연결 지점입니다.<br>아래는 다음 장면으로 전달된 게임 상태입니다.</p>
         <ul class="ns-summary"></ul>
-        <button type="button" class="g-btn ns-restart">처음부터 다시</button>
+        <div class="cf-actions">
+          <button type="button" class="g-btn ns-back" hidden>이전 장면으로 돌아가기</button>
+          <button type="button" class="g-btn ns-restart">처음부터 다시</button>
+        </div>
       </div>
     </div>
 
+    <div id="closeup" aria-hidden="true"><img alt=""></div>
     <div id="toast" role="status"></div>
     <div id="veil"></div>
 
     <div id="start-gate">
       <p>화면을 눌러 시작</p>
+      <div class="gate-dev">
+        <span>장면 단독 테스트</span>
+        <select id="gate-scene" aria-label="장면"></select>
+        <select id="gate-job" aria-label="입고 있을 의상(직업)"></select>
+        <button type="button" id="gate-go">시작</button>
+      </div>
     </div>
 
     <div id="rotate-hint">
@@ -110,6 +120,7 @@
   <script src="js/data/balance.js"></script>
   <script src="js/data/jobs.js"></script>
   <script src="js/data/progression.js"></script>
+  <script src="js/data/items.js"></script>
   <script src="js/data/script.js"></script>
   <!-- 엔진 -->
   <script src="js/core/state.js"></script>
@@ -123,9 +134,15 @@
   <script src="js/ui/dialogue.js"></script>
   <script src="js/ui/jobSelect.js"></script>
   <script src="js/ui/hud.js"></script>
+  <!-- 맵 시스템 (쯔꾸르식 이동 장면 공통) -->
+  <script src="js/map/mapView.js"></script>
+  <script src="js/map/mapCommands.js"></script>
   <!-- 장면: 새 장면은 js/scenes/ 에 파일을 만들고 여기에 한 줄만 추가 (js/scenes/_template.js 참고) -->
   <script src="js/scenes/whiteSpace.js"></script>
   <script src="js/scenes/chapter1.js"></script>
+  <script src="js/scenes/heroRoom/map.js"></script>
+  <script src="js/scenes/heroRoom/script.js"></script>
+  <script src="js/scenes/heroRoom/scene.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>
