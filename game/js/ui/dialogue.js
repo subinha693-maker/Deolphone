@@ -37,6 +37,7 @@ WS.Dialogue = class {
 
   hide() {
     this.el.box.classList.remove('show');
+    this.el.portrait.classList.remove('show');
   }
 
   get waitingForInput() { return this.mode === 'typing' || this.mode === 'waiting'; }
@@ -46,8 +47,8 @@ WS.Dialogue = class {
     const ch = charId ? WS.CHARACTERS[charId] : null;
     const isSystem = ch && ch.kind === 'system';
 
-    this.el.box.classList.toggle('system', !!isSystem);
-    this.el.box.classList.toggle('no-portrait', !!isSystem || !ch);
+    this.el.box.classList.toggle('system', !!isSystem || !speakerName);
+    this.el.portrait.classList.toggle('show', !!ch && !isSystem);
     this.el.box.dataset.speaker = charId || '';
     this.el.name.textContent = isSystem ? '' : (speakerName || '');
     this.el.name.classList.toggle('empty', isSystem || !speakerName);

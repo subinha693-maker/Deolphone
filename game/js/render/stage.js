@@ -32,6 +32,8 @@ WS.Stage = class {
     this.moodTint = 0;
     this.tweens = [];
     this.auraTimer = 0;
+    this.blinkTimer = 2.5;
+    this.blinking = 0;
     this.feathers = Array.from({ length: 9 }, () => this.newFeather(true));
     this.steam = [];
     this.steamTimer = 0;
@@ -39,7 +41,7 @@ WS.Stage = class {
 
   resize() {
     const vw = window.innerWidth, vh = window.innerHeight;
-    this.scale = Math.max(1, Math.floor(Math.min(vw / 230, vh / 124)));
+    this.scale = Math.max(1, Math.floor(Math.min(vw / 240, vh / 150)));
     this.W = Math.ceil(vw / this.scale);
     this.H = Math.ceil(vh / this.scale);
     this.canvas.width = this.W;
@@ -52,10 +54,10 @@ WS.Stage = class {
   /** 배치 기준점: 인물이 대화창에 가리지 않도록 화면 위쪽 55% 지점을 바닥으로 */
   layout() {
     const cx = Math.round(this.W / 2);
-    const floorY = Math.round(this.H * 0.55);
+    const floorY = Math.round(this.H * 0.6);
     return {
       cx, floorY,
-      tableX: cx + 14, tableTop: floorY - 13,
+      tableX: cx + 16, tableTop: floorY - 19,
       heroX: cx - 40,
     };
   }
@@ -92,7 +94,7 @@ WS.Stage = class {
 
   heroCenter() {
     const L = this.layout();
-    return { x: L.heroX, y: L.floorY - 17 };
+    return { x: L.heroX, y: L.floorY - 22 };
   }
 
   /** 각성 연출 (약 1.7초). onPeak 은 섬광 정점에서 한 번 호출된다. */
@@ -145,6 +147,10 @@ WS.Stage = class {
     const done = this.tweens.filter(t => t.t >= t.dur);
     this.tweens = this.tweens.filter(t => t.t < t.dur);
     done.forEach(t => t.resolve());
+
+    // 주인공 눈 깜빡임 (미레유는 깜빡이지 않는다)
+    if (this.blinking > 0) this.blinking -= dt;
+    else if ((this.blinkTimer -= dt) <= 0) { this.blinking = 0.13; this.blinkTimer = 2.4 + Math.random() * 2.6; }
 
     if (!this.frozen) {
       this.ambientTime += dt;
@@ -242,64 +248,96 @@ WS.Stage = class {
 
   drawChair(ctx, L) {
     // 붉은 벨벳 등받이 + 금색 틀 (미레유가 앉은 의자)
-    const x0 = L.tableX - 13, w = 26;
-    const top = L.tableTop - 28, bottom = L.tableTop + 2;
-    const R = '#a8202a', r = '#7a141c', Y = '#c9a24a', y = '#8a6a2a';
-    const px = (x, yy, c) => { ctx.fillStyle = c; ctx.fillRect(x, yy, 1, 1); };
+    const w = 30, x0 = L.tableX - 15;
+    const top = L.tableTop - 40, bottom = L.tableTop + 1;
+    const R = '#b3263a', r = '#86182a', h = '#d2475a', Y = '#d6b25e', y = '#8e6a2c';
     for (let yy = top; yy < bottom; yy++) {
       const k = yy - top;
-      const inset = k === 0 ? 7 : k === 1 ? 4 : k === 2 ? 2 : k === 3 ? 1 : 0;
+      const inset = [9, 6, 4, 3, 2, 1, 1][k] ?? 0;
       ctx.fillStyle = y; ctx.fillRect(x0 + inset - 1, yy, w - inset * 2 + 2, 1);
       ctx.fillStyle = Y; ctx.fillRect(x0 + inset, yy, w - inset * 2, 1);
-      if (k > 0) { ctx.fillStyle = R; ctx.fillRect(x0 + inset + 2, yy, w - inset * 2 - 4, 1); }
+      if (k > 1) {
+        ctx.fillStyle = R; ctx.fillRect(x0 + inset + 2, yy, w - inset * 2 - 4, 1);
+        ctx.fillStyle = h; ctx.fillRect(x0 + inset + 3, yy, 1, 1);
+      }
     }
-    // 단추 장식 (터프팅)
-    for (let yy = top + 6; yy < bottom - 2; yy += 6) {
-      for (let xx = x0 + 6; xx < x0 + w - 4; xx += 7) px(xx + ((yy - top) % 12 ? 3 : 0), yy, r);
+    ctx.fillStyle = r;
+    for (let yy = top + 7; yy < bottom - 3; yy += 7) {
+      for (let xx = x0 + 7; xx < x0 + w - 5; xx += 8) ctx.fillRect(xx + (((yy - top) / 7) % 2 ? 4 : 0), yy, 1, 1);
     }
-    px(x0 + 12, top - 1, Y); px(x0 + 13, top - 1, Y); px(x0 + 12, top - 2, y); px(x0 + 13, top - 2, y);
+    // 꼭대기 장식
+    ctx.fillStyle = Y; ctx.fillRect(x0 + 14, top - 3, 2, 3); ctx.fillRect(x0 + 13, top - 2, 4, 1);
+    ctx.fillStyle = '#e0283c'; ctx.fillRect(x0 + 14, top - 2, 2, 1);
+  }
+
+  dotSprite(id, frame) {
+    const key = 'dot:' + id + ':' + frame;
+    const cache = WS.SpriteCache.cache;
+    if (cache.has(key)) return cache.get(key);
+    const d = WS.DOTS[id];
+    const rows = d.frames[frame] || d.frames.idle;
+    const codes = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!#$%&()*+,-/:;<=>?@[]^_{|}~';
+    const c = document.createElement('canvas');
+    c.width = d.w; c.height = d.h;
+    const g = c.getContext('2d');
+    rows.forEach((row, y) => {
+      for (let x = 0; x < row.length; x++) {
+        const ch = row[x];
+        if (ch === '.') continue;
+        g.fillStyle = d.palette[codes.indexOf(ch)];
+        g.fillRect(x, y, 1, 1);
+      }
+    });
+    cache.set(key, c);
+    return c;
   }
 
   drawMireille(ctx, L) {
-    const img = WS.SpriteCache.build('mireille', WS.SPRITES.mireille);
+    const img = this.dotSprite('mireille', 'idle');
     ctx.globalAlpha = this.mireilleAlpha;
-    // 손이 테이블 위에 올라오도록 배치. 미레유는 숨을 쉬지 않는다 (미동 없음)
-    ctx.drawImage(img, L.tableX - Math.floor(img.width / 2), L.tableTop - img.height + 2);
+    // 허리가 테이블 높이에 오도록 (아랫부분은 식탁보에 가려 앉아 있는 것처럼 보인다). 숨도 쉬지 않는다.
+    ctx.drawImage(img, L.tableX - img.width / 2, L.tableTop - 30);
     ctx.globalAlpha = 1;
   }
 
   drawTable(ctx, L) {
-    const x0 = L.tableX - 22, w = 44, top = L.tableTop;
-    const O = '#3a3440', D = '#26222b', d = '#4a4352', G = '#b89b5e', g = '#8a7040';
+    const w = 56, x0 = L.tableX - w / 2, top = L.tableTop;
+    const O = '#2b1b2a', D = '#3e2a3c', d = '#56405a', lace = '#efe4ef', laceS = '#c9b6c8', G = '#c9a24a';
     // 상판
-    ctx.fillStyle = O; ctx.fillRect(x0, top - 1, w, 1);
+    ctx.fillStyle = O; ctx.fillRect(x0 + 1, top - 1, w - 2, 1);
     ctx.fillStyle = d; ctx.fillRect(x0, top, w, 2);
     ctx.fillStyle = G; ctx.fillRect(x0, top + 2, w, 1);
-    ctx.fillStyle = D; ctx.fillRect(x0 + 1, top + 3, w - 2, 1);
-    ctx.fillStyle = g; ctx.fillRect(x0 + 3, top + 4, w - 6, 1);
-    // 기둥 + 받침
-    const lx = L.tableX - 2;
-    ctx.fillStyle = D; ctx.fillRect(lx, top + 5, 4, L.floorY - top - 7);
-    ctx.fillStyle = d; ctx.fillRect(lx + 1, top + 5, 1, L.floorY - top - 7);
-    ctx.fillStyle = G; ctx.fillRect(lx - 1, top + 8, 6, 1);
-    ctx.fillStyle = D; ctx.fillRect(lx - 6, L.floorY - 2, 16, 2);
-    ctx.fillStyle = G; ctx.fillRect(lx - 7, L.floorY - 1, 18, 1);
+    // 바닥까지 내려오는 식탁보
+    ctx.fillStyle = D; ctx.fillRect(x0 + 1, top + 3, w - 2, L.floorY - top - 4);
+    ctx.fillStyle = O; ctx.fillRect(x0, top + 3, 1, L.floorY - top - 4); ctx.fillRect(x0 + w - 1, top + 3, 1, L.floorY - top - 4);
+    ctx.fillStyle = d;
+    for (let xx = x0 + 6; xx < x0 + w - 3; xx += 9) ctx.fillRect(xx, top + 4, 1, L.floorY - top - 8);
+    // 레이스 밑단
+    ctx.fillStyle = lace; ctx.fillRect(x0, L.floorY - 3, w, 2);
+    ctx.fillStyle = laceS;
+    for (let xx = x0; xx < x0 + w; xx += 2) ctx.fillRect(xx, L.floorY - 1, 1, 1);
+    // 가운데 장미 장식
+    const rx = L.tableX - 2, ry = top + 6;
+    ctx.fillStyle = '#c4283a'; ctx.fillRect(rx, ry, 4, 3); ctx.fillRect(rx + 1, ry - 1, 2, 5);
+    ctx.fillStyle = '#ff6a78'; ctx.fillRect(rx + 1, ry, 1, 1);
+    ctx.fillStyle = '#4a7a4a'; ctx.fillRect(rx - 2, ry + 2, 2, 1); ctx.fillRect(rx + 4, ry + 2, 2, 1);
     // 테이블에는 그림자가 없다
 
     // 찻잔
-    const cx = L.tableX + 12, cy = top - 1;
-    ctx.fillStyle = '#6a6676'; ctx.fillRect(cx - 4, cy - 1, 9, 1);           // 받침 외곽
-    ctx.fillStyle = '#f4f3f8'; ctx.fillRect(cx - 3, cy - 1, 7, 1);           // 받침
-    ctx.fillStyle = '#6a6676'; ctx.fillRect(cx - 3, cy - 5, 6, 4);           // 잔 외곽
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(cx - 2, cy - 4, 4, 3);
-    ctx.fillStyle = G; ctx.fillRect(cx - 2, cy - 4, 4, 1);                   // 금테
-    ctx.fillStyle = '#6a6676'; ctx.fillRect(cx + 3, cy - 4, 1, 2);           // 손잡이
+    const cx = L.tableX + 15, cy = top - 1;
+    ctx.fillStyle = '#6a5a6e'; ctx.fillRect(cx - 4, cy, 9, 1);
+    ctx.fillStyle = '#f7f2f8'; ctx.fillRect(cx - 3, cy, 7, 1);
+    ctx.fillStyle = '#6a5a6e'; ctx.fillRect(cx - 3, cy - 5, 6, 5);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(cx - 2, cy - 4, 4, 4);
+    ctx.fillStyle = '#f2b8cf'; ctx.fillRect(cx - 1, cy - 2, 2, 1);
+    ctx.fillStyle = G; ctx.fillRect(cx - 2, cy - 4, 4, 1);
+    ctx.fillStyle = '#6a5a6e'; ctx.fillRect(cx + 3, cy - 4, 1, 3);
     // 아래로 흐르는 김
     for (const s of this.steam) {
       const k = s.t / s.life;
       ctx.globalAlpha = 0.55 * (1 - k);
-      ctx.fillStyle = '#c9c8d4';
-      const yy = Math.round(cy - 5 + k * 9);
+      ctx.fillStyle = '#c9c0d0';
+      const yy = Math.round(cy - 6 + k * 9);
       const xx = cx - 4 - s.ox - Math.round(k * 3 + Math.sin(s.t * 3) * 0.8);
       ctx.fillRect(xx, yy, 1, 1);
     }
@@ -307,17 +345,15 @@ WS.Stage = class {
   }
 
   drawHero(ctx, L) {
-    const job = this.heroJob;
-    const img = job
-      ? WS.SpriteCache.build('heroMagical', WS.SPRITES.heroMagical, job.sprite)
-      : WS.SpriteCache.build('heroBase', WS.SPRITES.heroBase);
+    const id = this.heroJob ? this.heroJob.id : 'hero';
+    const img = this.dotSprite(id, this.blinking > 0 ? 'blink' : 'idle');
     // 주인공에게만 그림자가 있다
-    ctx.fillStyle = 'rgba(120,118,135,0.28)';
-    ctx.fillRect(L.heroX - 7, L.floorY, 14, 1);
-    ctx.fillRect(L.heroX - 5, L.floorY + 1, 10, 1);
+    ctx.fillStyle = 'rgba(120,96,120,0.25)';
+    ctx.fillRect(L.heroX - 9, L.floorY, 18, 1);
+    ctx.fillRect(L.heroX - 6, L.floorY + 1, 12, 1);
     // 숨쉬기: 상반신만 1px 내려앉았다 돌아온다 (발은 바닥에 고정)
     const breathe = this.frozen ? 0 : (Math.sin(this.time * 2.2) > 0.6 ? 1 : 0);
-    const x = L.heroX - Math.floor(img.width / 2), y = L.floorY - img.height + 1, split = 19;
+    const x = L.heroX - img.width / 2, y = L.floorY - img.height + 1, split = 24;
     ctx.drawImage(img, 0, split, img.width, img.height - split, x, y + split, img.width, img.height - split);
     ctx.drawImage(img, 0, 0, img.width, split, x, y + breathe, img.width, split);
   }

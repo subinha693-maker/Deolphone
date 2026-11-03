@@ -34,10 +34,10 @@
     <!-- 대화창 -->
     <div id="dialogue-layer">
       <div class="choices"></div>
-      <div class="dlg g-frame">
-        <div class="dlg-portrait"><img alt=""></div>
+      <div class="dlg-portrait"><img alt=""></div>
+      <div class="dlg">
+        <div class="dlg-name"></div>
         <div class="dlg-body">
-          <div class="dlg-name"></div>
           <div class="dlg-text" aria-live="polite"></div>
         </div>
         <div class="dlg-next" aria-hidden="true"></div>
@@ -46,9 +46,9 @@
 
     <!-- 직업 선택 -->
     <div id="job-select" class="overlay">
-      <div class="js-panel g-frame">
+      <div class="js-panel p-frame">
         <header class="js-head">
-          <h2>받아들일 힘을 고르세요</h2>
+          <h2 class="plate">받아들일 힘을 고르세요</h2>
           <p>선택하기 전에 각각의 힘을 자세히 살펴볼 수 있습니다.</p>
         </header>
         <div class="js-main">
@@ -63,8 +63,8 @@
 
     <!-- 상태창 -->
     <div id="status" class="overlay">
-      <div class="st-panel g-frame">
-        <h2>상태</h2>
+      <div class="st-panel p-frame">
+        <h2 class="plate">상태</h2>
         <div class="st-body"></div>
         <button type="button" class="g-btn st-close">닫기</button>
       </div>
@@ -72,8 +72,8 @@
 
     <!-- 확인 창 -->
     <div id="confirm" class="overlay">
-      <div class="cf-panel g-frame">
-        <h2 class="cf-title"></h2>
+      <div class="cf-panel p-frame">
+        <h2 class="plate cf-title"></h2>
         <p class="cf-body"></p>
         <div class="cf-actions">
           <button type="button" class="g-btn cf-no">취소</button>
@@ -84,8 +84,8 @@
 
     <!-- 다음 장면 (미구현 자리 표시) -->
     <div id="next-scene" class="overlay">
-      <div class="ns-panel g-frame">
-        <h2>다음 장면</h2>
+      <div class="ns-panel p-frame">
+        <h2 class="plate">다음 장면</h2>
         <p class="muted">흰 공간 너머의 장면은 아직 구현되지 않았습니다.<br>아래는 다음 장면으로 전달된 게임 상태입니다.</p>
         <ul class="ns-summary"></ul>
         <button type="button" class="g-btn ns-restart">처음부터 다시</button>
@@ -117,6 +117,7 @@
   <script src="js/core/scriptRunner.js"></script>
   <script src="js/core/sceneManager.js"></script>
   <script src="js/render/sprites.js"></script>
+  <script src="js/render/dots.js"></script>
   <script src="js/render/effects.js"></script>
   <script src="js/render/stage.js"></script>
   <script src="js/ui/dialogue.js"></script>

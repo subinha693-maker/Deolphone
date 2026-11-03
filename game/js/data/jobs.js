@@ -15,7 +15,7 @@
  *   strengths       장점과 특징
  *   color / colorLight  강조색
  *   awakening       각성 효과 (particle: heart|butterfly|star|petal|bell)
- *   sprite          변신 후 픽셀 스프라이트 팔레트
+ *   (변신 후 도트는 tools/dots.py 의 draw_<id> 함수에서 그린다)
  *   unlock          해금 조건 (progression.js 의 조건 형식). 없으면 항상 선택 가능
  *   draft           true 면 설정 미확정 임시 데이터 (화면에 '임시' 표시)
  */
@@ -34,9 +34,8 @@ WS.JOBS = [
     color: '#e2477c',
     colorLight: '#ffc2d8',
     awakening: { particle: 'heart', colors: ['#ff8fb8', '#ffd6e6', '#e2477c'], shake: 2 },
-    sprite: { H: '#f4a6c8', h: '#ffd4e6', d: '#c9658f', E: '#d9466f', D: '#f7b6d0', e: '#e08aae', A: '#e2386f', T: '#fff4f8', B: '#ef8ab0' },
-    portrait: 'assets/portraits/morganite.png',
-    card: 'assets/jobs/morganite.png',
+    portrait: 'assets/portraits/morganite.jpg',
+    card: 'assets/jobs/morganite.jpg',
     unlock: { type: 'always' },
     draft: true,
   },
@@ -52,9 +51,8 @@ WS.JOBS = [
     color: '#3f7fd6',
     colorLight: '#cfe2ff',
     awakening: { particle: 'butterfly', colors: ['#9cc4ff', '#ffffff', '#3f7fd6'], shake: 2 },
-    sprite: { H: '#d8dde8', h: '#ffffff', d: '#9aa3b8', E: '#4a8fd8', D: '#eef3fb', e: '#a9c1e6', A: '#3a6fd0', T: '#ffffff', B: '#c9d6ec' },
-    portrait: 'assets/portraits/aquamarine.png',
-    card: 'assets/jobs/aquamarine.png',
+    portrait: 'assets/portraits/aquamarine.jpg',
+    card: 'assets/jobs/aquamarine.jpg',
     unlock: { type: 'always' },
     draft: true,
   },
@@ -70,9 +68,8 @@ WS.JOBS = [
     color: '#8a5ad8',
     colorLight: '#e4d6ff',
     awakening: { particle: 'star', colors: ['#c9b0ff', '#f6e7a8', '#8a5ad8'], shake: 2 },
-    sprite: { H: '#b49be0', h: '#dccbf8', d: '#7f63b8', E: '#8a6ad0', D: '#f6f1ff', e: '#b9a2e6', A: '#6b4bb8', T: '#e8c66a', B: '#6b4bb8' },
-    portrait: 'assets/portraits/amethyst.png',
-    card: 'assets/jobs/amethyst.png',
+    portrait: 'assets/portraits/amethyst.jpg',
+    card: 'assets/jobs/amethyst.jpg',
     unlock: { type: 'always' },
     draft: true,
   },
@@ -88,9 +85,8 @@ WS.JOBS = [
     color: '#c4283a',
     colorLight: '#ffc9cf',
     awakening: { particle: 'petal', colors: ['#e0384a', '#ff8a96', '#5a1018'], shake: 3 },
-    sprite: { H: '#4a2a28', h: '#6e423c', d: '#2c1818', E: '#c0303a', D: '#2e2834', e: '#1c1820', A: '#c4283a', T: '#c4283a', B: '#3a1a22' },
-    portrait: 'assets/portraits/ruby.png',
-    card: 'assets/jobs/ruby.png',
+    portrait: 'assets/portraits/ruby.jpg',
+    card: 'assets/jobs/ruby.jpg',
     unlock: { type: 'always' },
     draft: true,
   },
@@ -106,9 +102,8 @@ WS.JOBS = [
     color: '#d9a21e',
     colorLight: '#fff0b8',
     awakening: { particle: 'bell', colors: ['#ffd65a', '#fff6cf', '#b07a12'], shake: 2 },
-    sprite: { H: '#c9a07a', h: '#ebc89e', d: '#8f6a4a', E: '#c08a2a', D: '#5a3626', e: '#3e241a', A: '#e8b830', T: '#f6efd8', B: '#5a3626' },
-    portrait: 'assets/portraits/heliodor.png',
-    card: 'assets/jobs/heliodor.png',
+    portrait: 'assets/portraits/heliodor.jpg',
+    card: 'assets/jobs/heliodor.jpg',
     unlock: { type: 'always' },
     draft: true,
   },

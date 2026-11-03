@@ -24,7 +24,7 @@ game/
 │  ├─ data/                ← 내용 수정은 여기서
 │  │  ├─ script.js         대사 스크립트 (텍스트) + 연출 명령
 │  │  ├─ characters.js     화자 이름 ↔ 캐릭터, 초상화
-│  │  ├─ jobs.js           직업 5종: 이름, 소개, 전투 성향, 장점, 색, 각성 효과, 변신 팔레트, 해금 조건
+│  │  ├─ jobs.js           직업 5종: 이름, 소개, 전투 성향, 장점, 색, 각성 효과, 해금 조건
 │  │  ├─ balance.js        ※임시 수치: 직업별 능력치, 능력(위력·마나·대기 턴·효과)
 │  │  └─ progression.js    회차 · 해금 조건 · 엔딩 (확장용 뼈대, localStorage 저장)
 │  ├─ core/
@@ -33,7 +33,8 @@ game/
 │  │  ├─ scriptRunner.js   노드 순서 실행, 연출 명령 처리, 재시작 시 이전 실행 중단
 │  │  └─ sceneManager.js   장면 등록 · 전환 (goTo). 다음 장면 자리 표시
 │  ├─ render/
-│  │  ├─ sprites.js        픽셀 스프라이트(문자 지도) + 자동 외곽선
+│  │  ├─ dots.js           캐릭터 도트 7종 (tools/dots.py 가 자동 생성 — 직접 고치지 말 것)
+│  │  ├─ sprites.js        파티클 · 깃털 모양
 │  │  ├─ effects.js        흔들림, 섬광, 빛 고리, 파티클
 │  │  └─ stage.js          흰 공간 무대: 배치, 깃털·찻잔 김, 분위기, 각성 연출
 │  ├─ ui/
@@ -43,9 +44,12 @@ game/
 │  └─ main.js              전체 연결, 입력 처리, 새 게임
 ├─ assets/
 │  ├─ source/              제공된 원본 일러스트 (jpg)
-│  ├─ portraits/           대화창 초상화 (64x64 픽셀 아트, 자동 생성)
-│  └─ jobs/                직업 카드 일러스트 (72x120 픽셀 아트, 자동 생성)
-├─ tools/pixelize.py       원본 → 픽셀 아트 변환 (크롭 위치 · 색 수 조정 가능)
+│  ├─ portraits/           대화창 · 상태창 초상화 (원본 화질 크롭, 자동 생성)
+│  ├─ jobs/                직업 카드 일러스트 (원본 화질, 자동 생성)
+│  └─ ui/                  대화창 · 이름표 · 선택지 버튼 · 구분선 (참고 UI 이미지에서 잘라 냄)
+├─ tools/dots.py           쯔꾸르풍 SD 도트 생성기 (캐릭터별 draw_ 함수) → js/render/dots.js, tools/dots_preview.png
+├─ tools/make_art.py       원본 일러스트 → 초상화 · 직업 카드 (크롭 위치 조정 가능)
+├─ tools/extract_ui.py     참고 UI 이미지 → 투명 배경 UI 조각 (글자 지움)
 └─ tests/e2e.js            자동 플레이 테스트 (Playwright)
 ```
 
@@ -77,10 +81,11 @@ game/
 
 ## 직업 수정하기
 
-- 이름 · 소개 · 성향 · 장점 · 색 · 각성 파티클 · 변신 색: `js/data/jobs.js`
+- 이름 · 소개 · 성향 · 장점 · 색 · 각성 파티클: `js/data/jobs.js`
+- 변신 후 도트 모습: `tools/dots.py` 의 `draw_<직업ID>` 수정 후 `python3 tools/dots.py`
 - 능력치 · 능력 수치(임시): `js/data/balance.js`
 - 새 직업 추가: `jobs.js` 에 항목 추가 + `balance.js` 의 `STATS`/`ABILITIES` 추가 +
-  `assets/source/<id>.jpg` 를 넣고 `tools/pixelize.py` 의 목록에 추가 후 실행
+  `assets/source/<id>.jpg` 를 넣고 `tools/make_art.py` 목록에 추가 후 실행 + `tools/dots.py` 에 도트 추가
 - 특정 회차·엔딩 이후에만 열리게: `unlock: { type: 'loopAtLeast', value: 2 }` 등 (`progression.js` 참고)
 - 설정이 확정되면 `draft: true` 를 지우면 화면의 '임시' 표시가 사라진다
 

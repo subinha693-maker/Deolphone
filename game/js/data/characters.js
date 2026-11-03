@@ -10,14 +10,14 @@ WS.CHARACTERS = {
   hero: {
     names: ['주인공'],
     displayName: '주인공',
-    portrait: 'assets/portraits/hero.png',
+    portrait: 'assets/portraits/hero.jpg',
     // 각성 후에는 선택한 직업의 초상화(jobs.js 의 portrait)로 바뀐다
     usesJobPortrait: true,
   },
   mireille: {
     names: ['미레유', '안내자'],
     displayName: '미레유',
-    portrait: 'assets/portraits/mireille.png',
+    portrait: 'assets/portraits/mireille.jpg',
   },
   system: {
     names: ['시스템'],
