@@ -24,7 +24,8 @@
  *   @set 플래그이름          게임 상태에 플래그 기록
  *   @choice ... @endchoice  일반 선택지. 각 줄: "- 보기 문장 -> 라벨" (라벨 생략 시 다음 줄로 진행)
  *                          조건부 보기: "- 보기 문장 -> 라벨 @if 조건이름" (조건은 js/data/progression.js)
- *   @end 버튼문구 -> 장면ID  장면 종료 버튼. 누르면 SceneManager.goTo(장면ID)
+ *   @end 버튼문구 -> 장면ID  장면 종료 버튼. 누르면 해당 장면으로 이동 (-> 생략 시 장면 정의의 next)
+ *   @goscene 장면ID         버튼 없이 바로 장면 이동
  */
 window.WS = window.WS || {};
 
@@ -200,5 +201,5 @@ WS.SCRIPTS.whiteSpace = String.raw`
 [시스템]
 새로운 여정이 시작됩니다.
 
-@end 다음 장면으로 -> chapter1
+@end 다음 장면으로
 `;

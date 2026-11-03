@@ -22,9 +22,12 @@ WS.Stage = class {
     requestAnimationFrame(t => this.loop(t));
   }
 
-  reset() {
+  reset(opts = {}) {
     this.fx.reset();
-    this.whiteout = 1;            // 1 이면 화면 전체가 흰색 (시작 상태)
+    this.backdrop = null;
+    this.props = true;
+    // 처음 시작할 때만 흰 화면에서 페이드인. 다른 장면에서 넘어오면 화면 전환이 이미 덮고 있다
+    this.whiteout = opts.fromScene ? 0 : 1;            // 1 이면 화면 전체가 흰색 (시작 상태)
     this.mireilleAlpha = 0;
     this.heroForm = null;         // null = 평상복, 직업 ID = 변신
     this.heroJob = null;
@@ -199,16 +202,18 @@ WS.Stage = class {
     const { ctx, W, H } = this;
     const L = this.layout();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    this.drawBackground(ctx, W, H);
+    if (this.backdrop) this.backdrop(ctx, W, H, this); else this.drawBackground(ctx, W, H);
 
     const [sx, sy] = this.fx.shakeOffset();
     ctx.setTransform(1, 0, 0, 1, sx, sy);
 
     this.drawFeathers(ctx, W, H);
-    this.drawChair(ctx, L);
-    if (this.mireilleAlpha > 0.01) this.drawMireille(ctx, L);
-    this.drawTable(ctx, L);
-    this.drawHero(ctx, L);
+    if (this.props) {
+      this.drawChair(ctx, L);
+      if (this.mireilleAlpha > 0.01) this.drawMireille(ctx, L);
+      this.drawTable(ctx, L);
+      this.drawHero(ctx, L);
+    }
     this.fx.drawWorld(ctx);
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);

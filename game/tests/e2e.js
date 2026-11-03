@@ -228,6 +228,47 @@ B로 옴
     await page.close();
   }
 
+  // 3-c) 장면 분리: 별도로 등록한 새 장면이 이어 붙고, 직업·능력 상태가 넘어가며, 배경을 바꿀 수 있다
+  {
+    const { page, errors } = await openGame(browser, { width: 844, height: 390 });
+    await page.waitForTimeout(300);
+    await page.evaluate(() => {
+      WS.SCRIPTS.testScene = '[주인공]\n{job.name} 으로 도착\n\n@end 계속 -> chapter1';
+      WS.defineScriptScene('testScene', {
+        script: 'testScene', next: 'chapter1', props: false,
+        backdrop(ctx, W, H) { ctx.fillStyle = '#f6c9a8'; ctx.fillRect(0, 0, W, H); },
+      });
+      // 흰 공간의 다음 장면을 새 장면으로 바꿔 끼운다
+      WS.SCENES.whiteSpace.next = 'testScene';
+    });
+    await advanceUntil(page, () => WS.game.ui.jobSelect.isOpen, 400);
+    await page.waitForTimeout(400);
+    await page.click('.job-item[data-job="ruby"]');
+    await page.click('.js-accept'); await page.waitForTimeout(300); await page.click('.cf-yes');
+    const end = await advanceUntil(page, () => !!document.querySelector('.choices.end.show button:not([disabled])'), 400);
+    await page.click('.choices.end button');
+    await page.waitForTimeout(2200);
+    const r = await page.evaluate(() => ({
+      scene: WS.game.state.sceneId, cur: WS.game.scenes.current,
+      job: WS.game.state.player.jobId, ab: WS.game.state.player.abilities.map(a => a.id),
+      props: WS.game.stage.props, hasBackdrop: !!WS.game.stage.backdrop, whiteout: WS.game.stage.whiteout,
+      said: window.__said.slice(-1)[0],
+    }));
+    check('장면 분리: 새로 등록한 장면으로 이동 (-> 생략, 장면 정의의 next 사용)', end && r.scene === 'testScene' && r.cur === 'testScene', JSON.stringify(r));
+    check('장면 분리: 직업·능력 상태가 다음 장면으로 이어짐 + 대사 치환', r.job === 'ruby' && r.ab[0] === 'thorn_waltz' && r.said === '로즈 루비 으로 도착', r.said);
+    check('장면 분리: 장면별 배경 · 소품 설정 적용, 페이드인 중복 없음', r.props === false && r.hasBackdrop && r.whiteout === 0);
+    await advanceUntil(page, () => !!document.querySelector('.choices.end.show button:not([disabled])'), 100);
+    await page.click('.choices.end button');
+    await page.waitForTimeout(2000);
+    const back = await page.evaluate(() => WS.game.scenes.current);
+    check('장면 분리: 연달아 장면 이동 (새 장면 → chapter1)', back === 'chapter1');
+    await page.click('.ns-restart'); await page.waitForTimeout(400);
+    const rs = await page.evaluate(() => ({ cur: WS.game.scenes.current, props: WS.game.stage.props, bd: !!WS.game.stage.backdrop, job: WS.game.state.player.jobId }));
+    check('장면 분리: 처음부터 다시 시 흰 공간 · 기본 배경으로 복귀', rs.cur === 'whiteSpace' && rs.props && !rs.bd && rs.job === null, JSON.stringify(rs));
+    check('장면 분리: 콘솔 오류 없음', errors.length === 0, errors.join(' | '));
+    await page.close();
+  }
+
   // 4) 화면 크기별 UI 잘림 검사
   const viewports = [
     { width: 667, height: 375, name: '소형 폰 가로' },

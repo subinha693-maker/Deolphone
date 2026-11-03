@@ -137,10 +137,19 @@ WS.ScriptRunner = class {
       case 'end': {
         const m = args.match(/^(.*?)\s*->\s*(\S+)$/);
         const label = m ? m[1] : args;
-        const target = m ? m[2] : 'next';
+        const from = g.scenes.current;
+        const target = m ? m[2] : g.scenes.nextId;
         await g.ui.dialogue.choose([label], { kind: 'end' });
         if (!alive()) return null;
-        g.scenes.goTo(target, { from: 'whiteSpace' });
+        if (!target) { g.ui.toast('다음 장면이 지정되지 않았습니다.', true); return null; }
+        g.scenes.goTo(target, { from });
+        return null;
+      }
+      case 'goscene': {
+        // 버튼 없이 바로 장면 이동
+        const from = g.scenes.current;
+        g.ui.dialogue.hide();
+        await g.scenes.goTo(a0, { from });
         return null;
       }
       default:

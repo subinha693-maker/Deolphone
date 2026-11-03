@@ -31,7 +31,8 @@ game/
 │  │  ├─ state.js          게임 상태 생성, 직업 적용, 각성 시 능력 등록
 │  │  ├─ scriptParser.js   대사 텍스트 → 실행 노드
 │  │  ├─ scriptRunner.js   노드 순서 실행, 연출 명령 처리, 재시작 시 이전 실행 중단
-│  │  └─ sceneManager.js   장면 등록 · 전환 (goTo). 다음 장면 자리 표시
+│  │  └─ sceneManager.js   장면 등록(registerScene / defineScriptScene) · 전환(goTo)
+│  ├─ scenes/              장면 파일들 (장면 하나 = 파일 하나). _template.js 는 새 장면 복사용
 │  ├─ render/
 │  │  ├─ dots.js           캐릭터 도트 7종 (tools/dots.py 가 자동 생성 — 직접 고치지 말 것)
 │  │  ├─ sprites.js        파티클 · 깃털 모양
@@ -89,13 +90,25 @@ game/
 - 특정 회차·엔딩 이후에만 열리게: `unlock: { type: 'loopAtLeast', value: 2 }` 등 (`progression.js` 참고)
 - 설정이 확정되면 `draft: true` 를 지우면 화면의 '임시' 표시가 사라진다
 
+## 장면을 따로 만들어 이어 붙이기
+
+장면은 `js/scenes/` 에 파일 하나씩 따로 만든다. 직업 · 능력 · 선택 기록 · 플래그(`game.state`)는 장면이 바뀌어도 그대로 이어진다.
+
+1. `js/scenes/_template.js` 를 `js/scenes/<장면ID>.js` 로 복사하고 대사(`WS.SCRIPTS.<이름>`)와 옵션을 채운다.
+2. `index.html` 의 장면 구역에 `<script src="js/scenes/<장면ID>.js"></script>` 한 줄을 추가한다.
+3. 연결은 앞 장면 파일에서 `next: '<장면ID>'` 한 줄로 한다. (흰 공간은 `js/scenes/whiteSpace.js` 의 `next` 가 `chapter1` 을 가리킨다.)
+   `chapter1.js`(자리 표시)를 새 장면으로 바꾸거나, `next` 를 새 장면으로 돌리면 된다.
+
+장면 옵션: `backdrop(ctx,W,H,stage)` 배경을 직접 그림 / `props:false` 흰 공간 소품 숨김 / `setup` · `teardown` 추가 처리.
+전투처럼 대화가 아닌 장면은 `WS.registerScene(id, { enter, exit })` 로 직접 만든다.
+스크립트에서는 `@end 버튼문구 -> 장면ID`(장면ID 를 쓰면 그 장면, 생략하면 `next`) 또는 `@goscene 장면ID`(버튼 없이 이동)를 쓴다.
+
 ## 게임 데이터 흐름
 
 - 새 게임마다 `State.createRun()` 이 상태를 **새로** 만든다 → 이전 플레이의 선택값이 남지 않음
 - 직업 확정 → `player.jobId`, `player.stats` 기록
 - 각성(섬광 순간) → `player.abilities` 에 직업의 첫 능력 등록, `player.awakened = true`
-- `다음 장면으로` → `SceneManager.goTo('chapter1')`. 지금은 전달된 상태를 보여 주는 자리 표시 화면.
-  실제 다음 장면은 `sceneManager.js` 의 `WS.SCENES.chapter1` 을 교체하면 된다.
+- `다음 장면으로` → 흰 공간 장면의 `next`(`chapter1`)로 이동. 지금은 전달된 상태를 보여 주는 자리 표시 화면.
 - 회차 간 정보(`loop`, `endingsSeen`, `prologueClears`)만 `localStorage` 에 저장
 
 ## 테스트
