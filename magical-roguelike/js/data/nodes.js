@@ -65,5 +65,5 @@
   MG.WAVE_COUNT = { battle: [2, 3], elite: [2, 2], final: [3, 3] };
 
   // Enemy stat scaling by node difficulty (1..6)
-  MG.DIFFICULTY_SCALING = { hpPerLevel: 0.16, atkPerLevel: 0.1 };
+  MG.DIFFICULTY_SCALING = { hpPerLevel: 0.2, atkPerLevel: 0.12 };
 })();
