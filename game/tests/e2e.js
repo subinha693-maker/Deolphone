@@ -435,7 +435,8 @@ B로 옴
       const expected = WS.parseScript(src).nodes.filter(n => n.type === 'say').map(n => WS.game.runner.interpolate(n.text));
       return {
         ok: JSON.stringify(window.__said) === JSON.stringify(expected), n: expected.length,
-        claire: window.__portraits.filter(p => p && p.includes('claire_')).length,
+        // 각성 후라 클레어는 직업별(변신 후) 표정을 쓴다 (#room 기본 직업 = morganite)
+        claire: window.__portraits.filter(p => p && /(claire|morganite)_/.test(p)).length,
         mayer: window.__portraits.filter(p => p && p.includes('mayer_')).length,
         closeup: window.__closeup, ev: WS.game.state.scenes.heroRoom.events.opening,
         dlg: document.querySelector('.dlg').classList.contains('show'),
