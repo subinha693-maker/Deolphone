@@ -22,9 +22,15 @@
           <h1>황혼의 마법소녀 원정대</h1>
           <img class="divider-img" src="assets/ui/divider.png" alt="" />
           <button class="choice-btn" id="btnStart"><span>탐사 시작</span></button>
+          <div class="title-menu">
+            <button class="tb-btn" id="btnSanctuary">별빛 성소</button>
+            <button class="tb-btn" id="btnCodex">도감</button>
+            <button class="tb-btn" id="btnSettings">설정</button>
+          </div>
+          <div id="titleInfo"></div>
           <div class="title-help">
             <b>조작</b> · 아군은 자동으로 공격합니다. 스킬 버튼 / <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> 로 스킬 사용,
-            대기 아군 카드를 누른 뒤 배치 칸을 눌러 교대, <kbd>⇄</kbd> 진형 변경, <kbd>↕</kbd> 진격로 이동, <kbd>Space</kbd> 일시정지
+            대기 아군 카드 → 배치 칸으로 교대, <kbd>⇄</kbd> 진형 변경, <kbd>↕</kbd> 진격로 이동, <kbd>Space</kbd> 일시정지
           </div>
         </div>
       </section>
@@ -47,6 +53,7 @@
         <header class="topbar" id="battleTopbar"></header>
         <div id="relicStrip"></div>
         <div id="laneInfo"></div>
+        <div id="nextPanel"></div>
         <div id="battleHud">
           <div id="fieldPanel"></div>
           <div id="benchPanel"></div>
@@ -79,14 +86,55 @@
         </div>
       </section>
 
+      <!-- Party select -->
+      <section id="screen-party" class="screen">
+        <header class="topbar"><span class="title">원정대 편성</span><span class="tag" id="partyCount"></span><span class="spacer"></span>
+          <span id="ascPicker"></span><button class="tb-btn" id="btnPartyBack">타이틀</button></header>
+        <div id="partyGrid"></div>
+        <footer id="partyFooter">
+          <div id="partyPicked"></div>
+          <button class="tb-btn" id="btnRecommend">추천 구성</button>
+          <button class="choice-btn" id="btnDepart"><span>출발</span></button>
+        </footer>
+      </section>
+
+      <!-- Shop -->
+      <section id="screen-shop" class="screen">
+        <canvas id="shopCanvas" width="1280" height="720"></canvas>
+        <header class="topbar"><span class="title">◈ 떠돌이 성물 상점</span><span class="tag" id="shopNote"></span><span class="spacer"></span><div id="shopRes" style="display:flex;gap:14px;align-items:center"></div></header>
+        <div id="shopItems"></div>
+        <div id="shopActions">
+          <button class="tb-btn" id="btnShopReroll"></button>
+          <button class="choice-btn dark" id="btnShopLeave"><span>나가기</span></button>
+        </div>
+      </section>
+
+      <!-- Sanctuary -->
+      <section id="screen-sanctuary" class="screen">
+        <header class="topbar"><span class="title">✦ 별빛 성소</span><span class="tag" id="moonTag"></span><span class="spacer"></span>
+          <div id="sanctTabs"></div><button class="tb-btn" id="btnSanctBack">돌아가기</button></header>
+        <div id="sanctBody"></div>
+      </section>
+
+      <!-- Codex -->
+      <section id="screen-codex" class="screen">
+        <header class="topbar"><span class="title">도감</span><span class="tag" id="codexTag"></span><span class="spacer"></span>
+          <div id="codexTabs"></div><button class="tb-btn" id="btnCodexBack">돌아가기</button></header>
+        <div id="codexBody"></div>
+      </section>
+
       <!-- Result -->
       <section id="screen-result" class="screen">
         <div class="result-box">
           <h2 id="resultTitle"></h2>
           <div id="resultSub"></div>
           <div id="resultStats"></div>
-          <button class="choice-btn" id="btnRestart"><span>새 탐사 시작</span></button>
-          <button class="choice-btn dark" id="btnTitle"><span>타이틀로</span></button>
+          <div id="resultMoon"></div>
+          <div class="result-btns">
+            <button class="choice-btn" id="btnRestart"><span>새 탐사 시작</span></button>
+            <button class="choice-btn dark" id="btnToSanct"><span>별빛 성소로</span></button>
+            <button class="choice-btn dark" id="btnTitle"><span>타이틀로</span></button>
+          </div>
         </div>
       </section>
 
@@ -95,6 +143,14 @@
         <div class="drawer-head">유물 &amp; 시너지 <button id="btnCloseDrawer">✕</button></div>
         <div id="drawerBody"></div>
       </aside>
+
+      <!-- Settings -->
+      <div id="settingsModal" class="hidden">
+        <div class="modal-box">
+          <div class="drawer-head">설정 <button id="btnCloseSettings">✕</button></div>
+          <div id="settingsBody"></div>
+        </div>
+      </div>
 
       <div id="tooltip" class="hidden"></div>
       <div id="toast" class="hidden"></div>
@@ -105,6 +161,7 @@
   <!-- data -->
   <script src="js/core/util.js"></script>
   <script src="js/core/StateMachine.js"></script>
+  <script src="js/core/SaveManager.js"></script>
   <script src="js/data/config.js"></script>
   <script src="js/data/spriteData.js"></script>
   <script src="js/data/characters.js"></script>
@@ -112,6 +169,7 @@
   <script src="js/data/relics.js"></script>
   <script src="js/data/nodes.js"></script>
   <script src="js/data/events.js"></script>
+  <script src="js/data/meta.js"></script>
   <!-- systems -->
   <script src="js/systems/FormationSystem.js"></script>
   <script src="js/systems/PartyManager.js"></script>
@@ -124,12 +182,16 @@
   <script src="js/systems/ExplorationManager.js"></script>
   <script src="js/systems/RewardSystem.js"></script>
   <script src="js/systems/NodeManager.js"></script>
+  <script src="js/systems/ShopSystem.js"></script>
+  <script src="js/systems/MetaProgress.js"></script>
   <script src="js/core/GameManager.js"></script>
   <!-- view -->
+  <script src="js/ui/AudioManager.js"></script>
   <script src="js/ui/Assets.js"></script>
   <script src="js/ui/BattleRenderer.js"></script>
   <script src="js/ui/SceneArt.js"></script>
   <script src="js/ui/UIManager.js"></script>
+  <script src="js/ui/UIScreens.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

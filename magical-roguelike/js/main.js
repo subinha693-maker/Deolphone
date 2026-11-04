@@ -35,6 +35,7 @@
     }
   };
 
+  MG.Save.load();
   MG.Assets.load().then(() => {
     document.getElementById('loading').remove();
     const gm = new MG.GameManager();

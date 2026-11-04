@@ -136,11 +136,26 @@
         this.drawAlliesOfLane(battle, lane);
       }
       this.drawMovers(battle);
+      this.drawWarnings(battle);
       this.drawProjectiles(battle);
       this.drawVfx(battle);
       this.drawFloats(battle);
       this.drawDust(battle);
       this.drawBanner(battle);
+    }
+
+    drawWarnings(battle) {
+      const g = this.g;
+      for (const w of battle.warnings) {
+        const y = MG.FormationSystem.G.LANE_Y[w.lane];
+        const a = 0.55 + 0.45 * Math.sin(battle.time * 14);
+        g.fillStyle = `rgba(255,60,90,${0.25 * a})`;
+        g.fillRect(1120, y - 120, 160, 140);
+        g.fillStyle = `rgba(255,120,140,${a})`;
+        g.font = 'bold 18px "Gowun Batang", serif';
+        g.textAlign = 'center';
+        g.fillText('⚠ ' + w.text, 1190, y - 40);
+      }
     }
 
     drawHome(battle) {
@@ -247,6 +262,16 @@
         g.textAlign = 'center';
         g.fillText('✦', x + w + 8, y + 6);
       }
+      if (b.regen) {
+        g.fillStyle = '#9ff0c0';
+        g.font = '12px serif';
+        g.fillText('✚', x - 9, y - 6);
+      }
+      if (b.buffs.some((bf) => bf.stat === 'taken')) {
+        g.fillStyle = '#ffe08a';
+        g.font = '12px serif';
+        g.fillText('✝', x + w + 8, y - 6);
+      }
       if (battle.hasteUnitId === u.id) {
         g.fillStyle = '#c7a0ff';
         g.font = '12px serif';
@@ -288,7 +313,7 @@
         g.globalAlpha = 1;
         return;
       }
-      if (e.stunUntil > battle.time) g.filter = 'grayscale(0.6)';
+      if (e.stunUntil > battle.time) g.filter = e.frozen ? 'saturate(0.3) brightness(1.3) hue-rotate(160deg)' : 'grayscale(0.6)';
       g.drawImage(img, x, y);
       g.filter = 'none';
       // hp bar

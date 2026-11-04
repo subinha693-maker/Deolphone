@@ -59,6 +59,16 @@
       }
     },
 
+    /** Small data-URL icon of an enemy (first frame), cached. */
+    enemyIcon(id) {
+      this._icons = this._icons || {};
+      if (!this._icons[id]) {
+        const fr = this.enemyFrames[id];
+        this._icons[id] = fr ? fr[0].normal.toDataURL() : '';
+      }
+      return this._icons[id];
+    },
+
     buildPortraits() {
       for (const id of Object.keys(MG.CHARACTERS)) {
         const img = this.images['char_' + id];

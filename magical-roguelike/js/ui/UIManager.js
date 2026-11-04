@@ -1,4 +1,5 @@
-// DOM screens and HUD. Reads game state and calls GameManager / systems for player actions.
+// DOM screens and HUD (core: routing, tooltips, map, battle HUD, relic drawer).
+// The other screens live in UIScreens.js as a prototype mixin.
 (function () {
   const MG = (window.MG = window.MG || {});
   const $ = (id) => document.getElementById(id);
@@ -6,7 +7,13 @@
   const SLOT_LABEL = { front: '전열', back: '후열' };
   const LANE_LABEL = ['상단', '하단'];
   const SKILL_KEYS = { '0-front': 'Q', '0-back': 'W', '1-front': 'E', '1-back': 'R' };
-  const SKILL_TYPE = { heal: '회복', aoe: '광역', shield: '보호막', single: '단일', defense: '방어', tag: '교대 연계' };
+  const stars = (d) => '★'.repeat(Math.min(5, Math.ceil(d / 1.2)));
+
+  const SCREEN_OF = {
+    TITLE: 'screen-title', PARTY_SELECT: 'screen-party', MAP: 'screen-map', BATTLE: 'screen-battle', REWARD: 'screen-reward',
+    RELIC: 'screen-reward', RECRUIT: 'screen-reward', EVENT: 'screen-event', REST: 'screen-event', SHOP: 'screen-shop',
+    SANCTUARY: 'screen-sanctuary', CODEX: 'screen-codex', RUN_FAILED: 'screen-result', RUN_CLEARED: 'screen-result',
+  };
 
   class UIManager {
     constructor(gm, renderer) {
@@ -19,28 +26,44 @@
       gm.bus.on('state', ({ state }) => this.onState(state));
       gm.bus.on('run', () => this.refreshRunViews());
       this.bindStatic();
+      this.bindScreens();
     }
 
-    // ---------------------------------------------------------------- screens
+    // ---------------------------------------------------------------- helpers
+    esc(s) {
+      return esc(s);
+    }
+    portrait(id) {
+      return MG.Assets.portraits[id];
+    }
+
     show(id) {
       document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('active', s.id === id));
-      $('battleCanvas').style.display = id === 'screen-battle' || id === 'screen-reward' ? 'block' : 'none';
+      $('battleCanvas').style.display = id === 'screen-battle' || (id === 'screen-reward' && this.gm.state === 'REWARD') ? 'block' : 'none';
     }
 
     onState(state) {
       this.sel = null;
       this.hideTip();
+      $('battleHud').style.visibility = '';
+      if (MG.Audio) {
+        MG.Audio.setDuck(false);
+        const track = MG.Audio.bgmForState(state, this.gm);
+        if (track) MG.Audio.playBgm(track);
+      }
+      if (SCREEN_OF[state]) this.show(SCREEN_OF[state]);
       switch (state) {
         case 'TITLE':
-          this.show('screen-title');
+          this.renderTitle();
+          break;
+        case 'PARTY_SELECT':
+          this.renderPartySelect();
           break;
         case 'MAP':
           this.pickedNode = null;
-          this.show('screen-map');
           this.renderMap();
           break;
         case 'BATTLE':
-          this.show('screen-battle');
           this.buildBattleHud();
           break;
         case 'REWARD':
@@ -49,11 +72,23 @@
         case 'RELIC':
           this.renderRelicPick();
           break;
+        case 'RECRUIT':
+          this.renderRecruit();
+          break;
         case 'EVENT':
           this.renderEvent();
           break;
         case 'REST':
           this.renderRest();
+          break;
+        case 'SHOP':
+          this.renderShop();
+          break;
+        case 'SANCTUARY':
+          this.renderSanctuary();
+          break;
+        case 'CODEX':
+          this.renderCodex();
           break;
         case 'RUN_FAILED':
         case 'RUN_CLEARED':
@@ -66,16 +101,11 @@
 
     refreshRunViews() {
       if (this.gm.state === 'MAP') this.renderMap();
+      if (this.gm.state === 'SHOP') this.renderShop();
       if (!$('relicDrawer').classList.contains('hidden')) this.renderDrawer();
     }
 
     bindStatic() {
-      $('btnStart').onclick = () => {
-        if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches && MG.requestLandscape) MG.requestLandscape();
-        this.gm.newRun();
-      };
-      $('btnRestart').onclick = () => this.gm.newRun();
-      $('btnTitle').onclick = () => this.gm.toTitle();
       $('btnCloseDrawer').onclick = () => $('relicDrawer').classList.add('hidden');
       document.addEventListener('mousemove', (e) => this.moveTip(e));
       document.addEventListener('keydown', (e) => this.onKey(e));
@@ -84,6 +114,11 @@
         if (el) this.showTip(el.getAttribute('data-tip'), e);
         else this.hideTip();
       });
+      // UI sounds + audio unlock on the first gesture
+      document.addEventListener('pointerdown', (e) => {
+        if (MG.Audio) MG.Audio.unlock();
+        if (e.target.closest('button, .rcard, .node.selectable, .pcard, .ucard, .shop-card, .char-card')) MG.Audio && MG.Audio.play('ui_click');
+      });
     }
 
     onKey(e) {
@@ -91,12 +126,14 @@
       if (e.key === 'Escape') {
         this.sel = null;
         $('relicDrawer').classList.add('hidden');
+        $('settingsModal').classList.add('hidden');
         return;
       }
       if (gm.state !== 'BATTLE') return;
       if (e.code === 'Space') {
         e.preventDefault();
         gm.paused = !gm.paused;
+        MG.Audio && MG.Audio.setDuck(gm.paused);
         return;
       }
       const key = Object.keys(SKILL_KEYS).find((k) => SKILL_KEYS[k] === e.key.toUpperCase());
@@ -110,11 +147,12 @@
       const t = $('toast');
       t.textContent = msg;
       t.classList.remove('hidden');
+      MG.Audio && MG.Audio.play('toast');
       clearTimeout(this._toastT);
-      this._toastT = setTimeout(() => t.classList.add('hidden'), 1600);
+      this._toastT = setTimeout(() => t.classList.add('hidden'), 1800);
     }
 
-    // tooltips
+    // tooltips (stage may be rotated 90° on portrait screens)
     showTip(html, e) {
       const t = $('tooltip');
       t.innerHTML = html;
@@ -129,7 +167,6 @@
       let x;
       let y;
       if (v.rotate) {
-        // stage rotated 90° clockwise: local x runs down the screen, local y runs right-to-left
         const s = r.height / 1280;
         x = (e.clientY - r.top) / s + 16;
         y = (r.right - e.clientX) / s + 16;
@@ -147,21 +184,37 @@
       $('tooltip').classList.add('hidden');
     }
 
+    tagsText(tags) {
+      return (tags || []).map((t) => MG.TAG_NAMES[t] || t).join(' · ');
+    }
     relicTip(id) {
       const r = MG.RELICS[id];
       const rar = MG.RARITY[r.rarity];
-      const syns = Object.values(MG.SYNERGIES).filter((s) => (s.requires.relics || []).includes(id));
-      return `<h4>${r.icon} ${esc(r.name)}</h4><div class="muted">${rar.name}${r.tags.includes('fire') ? ' · 불속성' : ''}${r.stackable ? ' · 중첩 가능' : ''} · 발동: ${esc(r.trigger)}</div>${esc(r.desc)}${
+      const syns = Object.values(MG.SYNERGIES).filter((s) => (s.requires.relics || []).includes(id) || (s.requires.tagCount && r.tags.includes(s.requires.tagCount.tag)));
+      return `<h4>${r.icon} ${esc(r.name)}</h4><div class="muted">${rar.name}${r.tags.length ? ' · ' + this.tagsText(r.tags) : ''}${r.stackable ? ' · 중첩 가능' : ''} · 발동: ${esc(r.trigger)}</div>${esc(r.desc).replace(/\n/g, '<br>')}${
         syns.length ? `<div class="muted" style="margin-top:4px">시너지: ${syns.map((s) => esc(s.name)).join(', ')}</div>` : ''
       }`;
+    }
+    modsHtml(u) {
+      if (!u.mods || !u.mods.length) return '';
+      return `<div class="muted" style="margin-top:4px">개조 ${u.mods.length}/3: ${u.mods.map((m) => esc(MG.SKILL_MOD_INDEX[m].name)).join(', ')}</div>`;
+    }
+    unitTip(u) {
+      const s = u.def.stats;
+      const sk = MG.SkillSystem.effective(u);
+      return `<h4>${esc(u.def.name)} <span class="muted" style="font-size:12px">${esc(u.def.title)}</span></h4>
+        <div class="muted">${MG.ROLE_NAMES[u.def.role]} · ${u.def.attackType === 'melee' ? '근접' : '원거리'} · 체력 ${Math.ceil(u.hp)}/${u.maxHp} · 공격 ${s.atk} · 방어 ${s.def}</div>
+        <b>${esc(sk.name)}</b> <span class="muted">[${MG.SKILL_TYPE_NAMES[sk.type]} · ${sk.cooldown}초]</span><br>${esc(MG.SkillSystem.describe(u))}${
+        u.def.entry ? `<br><b>${esc(u.def.entry.name)}</b> <span class="muted">[패시브]</span><br>${esc(MG.SkillSystem.describeEntry(u))}` : ''
+      }${this.modsHtml(u)}`;
     }
 
     // ---------------------------------------------------------------- top bars
     resourcesHtml() {
       const run = this.gm.run;
-      return `<div class="res life" data-tip="<h4>공유 생명</h4>방어전에서 적이 홈 포인트에 도달하면 감소합니다. 0이 되면 탐사 실패."><span class="ic">♥</span><b>${run.life}</b></div>
-        <div class="res shard" data-tip="<h4>별조각</h4>탐사 자원. 사건에서 사용합니다."><span class="ic">✦</span><b>${run.shards}</b></div>
-        <div class="res" data-tip="<h4>물약</h4>탐사 맵의 파티 카드에서 아군 체력 40% 회복."><span class="ic">⚱</span><b>${run.potions}</b></div>
+      return `<div class="res life" data-tip="<h4>공유 생명</h4>방어전에서 적이 홈 포인트에 도달하면 감소합니다. 0이 되면 탐사 실패."><span class="ic">♥</span><b>${run.life}</b><small>/${run.maxLife}</small></div>
+        <div class="res shard" data-tip="<h4>별조각</h4>탐사 자원. 사건과 상점에서 사용합니다."><span class="ic">✦</span><b>${run.shards}</b></div>
+        <div class="res" data-tip="<h4>물약</h4>탐사 맵의 파티 카드에서 아군 체력 ${Math.round((MG.RUN_CONFIG.potionHealPct + (run.meta.potionBonus || 0)) * 100)}% 회복."><span class="ic">⚱</span><b>${run.potions}</b></div>
         <button class="tb-btn" id="btnRelics">유물 ${run.relics.length} · 시너지 ${MG.RelicSystem.synergyStatus(run).filter((s) => s.active).length}</button>`;
     }
     bindRelicButton() {
@@ -180,13 +233,20 @@
       const procs = this.gm.battle ? this.gm.battle.procs : {};
       const owned = MG.RelicSystem.uniqueOwned(run);
       let html = `<h4>보유 유물 (${run.relics.length})</h4>`;
-      if (!owned.length) html += '<div style="color:var(--pink-300)">아직 유물이 없습니다. 전투 보상 · 유물 노드 · 사건에서 얻을 수 있습니다.</div>';
+      if (!owned.length) html += '<div style="color:var(--pink-300)">아직 유물이 없습니다. 전투 보상 · 유물 노드 · 사건 · 상점에서 얻을 수 있습니다.</div>';
       for (const id of owned) {
         const r = MG.RELICS[id];
         const n = MG.RelicSystem.count(run, id);
         html += `<div class="d-relic ${r.rarity}"><div class="ic">${r.icon}</div><div><div class="nm">${esc(r.name)}${n > 1 ? ` ×${n}` : ''}</div>
-          <div class="meta">${MG.RARITY[r.rarity].name}${r.tags.includes('fire') ? ' · 불속성' : ''} · 발동: ${esc(r.trigger)}${procs[id] ? ` · 이번 전투 ${procs[id]}회 발동` : ''}</div>
-          <div>${esc(r.desc)}</div></div></div>`;
+          <div class="meta">${MG.RARITY[r.rarity].name}${r.tags.length ? ' · ' + this.tagsText(r.tags) : ''} · 발동: ${esc(r.trigger)}${procs[id] ? ` · 이번 전투 ${procs[id]}회 발동` : ''}</div>
+          <div>${esc(r.desc).replace(/\n/g, '<br>')}</div></div></div>`;
+      }
+      html += '<h4>스킬 개조</h4>';
+      const modded = run.party.all().filter((u) => u.mods.length);
+      if (!modded.length) html += '<div style="color:var(--pink-300)">아직 개조가 없습니다. 전투 보상 · 상점 · 사건에서 얻을 수 있습니다.</div>';
+      for (const u of modded) {
+        html += `<div class="d-relic"><div class="ic"><img src="${this.portrait(u.id)}" style="width:30px;height:30px"></div><div><div class="nm">${esc(u.def.name)} — ${esc(u.def.skill.name)} <span class="meta">개조 ${u.mods.length}/3</span></div>
+          ${u.mods.map((m) => `<div>· <b>${esc(MG.SKILL_MOD_INDEX[m].name)}</b>: ${esc(MG.SKILL_MOD_INDEX[m].desc)}</div>`).join('')}</div></div>`;
       }
       html += '<h4>시너지</h4>';
       const status = MG.RelicSystem.synergyStatus(run).sort((a, b) => b.active - a.active || b.have / b.need - a.have / a.need);
@@ -194,6 +254,12 @@
         html += `<div class="d-syn ${s.active ? 'active' : ''}"><span class="st">${s.active ? '활성' + (procs[s.syn.id] ? ` · ${procs[s.syn.id]}회 발동` : '') : `${s.have}/${s.need}`}</span>
           <div class="nm">${esc(s.syn.name)}</div><div>${esc(s.syn.desc)}</div>
           <div class="req">조건: ${s.parts.map((p) => `<span class="${p.ok ? 'ok' : ''}">${p.ok ? '✔' : '✗'} ${esc(p.label)}</span>`).join('')}</div></div>`;
+      }
+      if (Object.keys(run.bonus).length || run.nextBattles.length) {
+        html += '<h4>탐사 보너스</h4>';
+        const names = { atk: '공격력', def: '방어력', hp: '최대 체력' };
+        for (const [k, v] of Object.entries(run.bonus)) html += `<div>· 이번 탐사 ${names[k]} +${Math.round(v * 100)}%</div>`;
+        for (const nb of run.nextBattles) html += `<div>· 다음 ${nb.n}번의 전투 ${names[nb.stat]} +${Math.round(nb.pct * 100)}%</div>`;
       }
       $('drawerBody').innerHTML = html;
     }
@@ -205,13 +271,13 @@
       if (!run) return;
       const EM = MG.ExplorationManager;
       $('mapTopbar').innerHTML = `<span class="title">${esc(MG.RUN_CONFIG.regionName)}</span><span class="tag">탐사 ${run.completed.size}/${run.map.columns.length} 구역</span>
+        ${run.asc ? `<span class="tag def">${MG.ASCENSION[run.asc].name}</span>` : ''}
         <span class="spacer"></span>${this.resourcesHtml()}<button class="tb-btn" id="btnAbandon">탐사 포기</button>`;
       this.bindRelicButton();
-      // two-step confirmation inside the page (native confirm() is unavailable in sandboxed viewers)
       $('btnAbandon').onclick = (ev) => {
         const b = ev.currentTarget;
         if (b.dataset.armed) {
-          gm.newRun();
+          gm.sm.go('PARTY_SELECT');
           return;
         }
         b.dataset.armed = '1';
@@ -240,12 +306,12 @@
         const t = MG.NODE_TYPES[n.type];
         const st = EM.nodeState(run, n.id);
         const label = n.type === 'battle' && n.defense ? '방어전' : t.name;
+        const scouted = t.battle && EM.scoutLevel(run, n.id) > 0 ? '<span class="n-scout" title="정찰됨">◉</span>' : '';
         html += `<div class="node ${st} ${this.pickedNode === n.id ? 'picked' : ''}" data-id="${n.id}" style="left:${p.x}px;top:${p.y}px;color:${t.color}">
-          <div class="n-icon"><span>${t.icon}</span></div><div class="n-name">${label}<small>${'★'.repeat(Math.min(5, Math.ceil(n.difficulty / 1.2)))}</small></div>
+          <div class="n-icon"><span>${t.icon}</span></div><div class="n-name">${label}<small>${stars(n.difficulty)}</small></div>${scouted}
           <div class="n-stripe"></div>${st === 'completed' || st === 'current' ? '<div class="n-check">✔</div>' : ''}${st === 'current' ? '<div class="n-here">▼ 현재 위치</div>' : ''}</div>`;
       }
       nodesEl.innerHTML = html;
-      // links
       let svg = '';
       for (const n of Object.values(run.map.nodes)) {
         for (const nid of n.next) {
@@ -256,9 +322,8 @@
           const sb = EM.nodeState(run, nid);
           const traveled = run.path.includes(n.id) && run.path.includes(nid);
           const open = (sa === 'current' || sa === 'completed') && sb === 'selectable';
-          const startOpen = false;
           const col = traveled ? '#f2c14e' : open ? '#f3d4e6' : 'rgba(233,179,210,0.22)';
-          const dash = traveled || open || startOpen ? '' : 'stroke-dasharray="6 6"';
+          const dash = traveled || open ? '' : 'stroke-dasharray="6 6"';
           const x1 = a.x + 64;
           const x2 = b.x - 64;
           const mx = (x1 + x2) / 2;
@@ -271,7 +336,10 @@
           this.pickedNode = el.dataset.id;
           this.renderMap();
         };
-        el.onmouseenter = () => this.renderNodeDetail(el.dataset.id, true);
+        el.onmouseenter = () => {
+          MG.Audio && MG.Audio.play('ui_hover');
+          this.renderNodeDetail(el.dataset.id, true);
+        };
         el.onmouseleave = () => this.renderNodeDetail(this.pickedNode);
       });
       if (!this.pickedNode) {
@@ -280,6 +348,23 @@
       }
       this.renderNodeDetail(this.pickedNode);
       this.renderMapParty();
+    }
+
+    /** Wave plan summary for the map (by information level). */
+    scoutHtml(node) {
+      const run = this.gm.run;
+      const lvl = MG.ExplorationManager.scoutLevel(run, node.id);
+      const plan = MG.WaveManager.planFor(run, node);
+      if (lvl <= 0) return `웨이브 ${plan.length}개`;
+      const all = {};
+      const lanes = [{}, {}];
+      for (const w of plan) for (const s of w.spawns) {
+        all[s.enemy] = (all[s.enemy] || 0) + 1;
+        lanes[s.lane][s.enemy] = (lanes[s.lane][s.enemy] || 0) + 1;
+      }
+      const fmt = (m) => Object.entries(m).map(([e, c]) => `${MG.ENEMIES[e].name} ${c}`).join(', ') || '없음';
+      if (lvl === 1) return `웨이브 ${plan.length}개 · 정찰: ${fmt(all)}`;
+      return `웨이브 ${plan.length}개 · 상단: ${fmt(lanes[0])}<br>하단: ${fmt(lanes[1])}`;
     }
 
     renderNodeDetail(id, hover) {
@@ -294,17 +379,20 @@
       const st = MG.ExplorationManager.nodeState(run, id);
       const risk = { low: '낮음', mid: '보통', high: '높음' }[n.risk];
       const desc = {
-        battle: n.defense ? '홈 포인트 방어전. 적이 비어 있는 진격로를 통과해 홈 포인트에 닿으면 공유 생명이 줄어듭니다.' : '적 웨이브를 모두 격파하세요.',
-        elite: '강력한 적이 이끄는 웨이브. 희귀 유물 보상 확률이 높습니다.',
-        relic: '유물 3개 중 하나를 선택합니다.',
+        battle: n.defense ? '홈 포인트 방어전. 빈 진격로를 지나 홈 포인트에 닿은 적만큼 공유 생명이 줄어듭니다.' : '적 웨이브를 모두 격파하세요.',
+        elite: '강력한 적이 이끄는 웨이브. 희귀 유물·스킬 개조 보상.',
+        relic: '유물 중 하나를 선택합니다.',
         event: '무슨 일이 일어날지 모릅니다.',
         rest: '휴식, 간호, 정비 중 하나를 선택합니다.',
+        shop: '별조각으로 유물 · 스킬 개조 · 물약을 삽니다.',
+        recruit: run.party.size() >= MG.PartyManager.MAX_PARTY ? '파티가 가득 차 있어 사건으로 바뀝니다.' : `동료 후보 ${2 + (run.meta.recruitCandidates || 0)}명 중 1명을 영입합니다. (후보는 진입해야 알 수 있습니다)`,
         final: '구역의 주인 「가시관의 주교」와의 최종 방어전.',
       }[n.type];
       const next = n.next.map((x) => MG.NODE_TYPES[run.map.nodes[x].type].name).join(', ') || '없음';
       el.innerHTML = `<h3 style="color:${t.color}">${t.icon} ${t.name}${n.defense ? ' · 방어전' : ''}</h3>
-        난이도 <span class="stars">${'★'.repeat(Math.min(5, Math.ceil(n.difficulty / 1.2)))}</span> · 위험도 ${risk} · 보상: ${MG.MapManager.rewardHint(n)}<br>
-        <span style="color:var(--pink-300)">${desc}</span><br><span style="font-size:12px;color:var(--pink-300)">다음 연결: ${next}</span>
+        난이도 <span class="stars">${stars(n.difficulty)}</span> · 위험도 ${risk} · 보상: ${MG.MapManager.rewardHint(n)}<br>
+        <span style="color:var(--pink-300)">${desc}</span>${t.battle ? `<br><span style="font-size:12px;color:var(--pink-200)">${this.scoutHtml(n)}</span>` : ''}
+        <br><span style="font-size:12px;color:var(--pink-300)">다음 연결: ${next}</span>
         ${st === 'selectable' && !hover ? '<button class="choice-btn enter" id="btnEnter"><span>진입</span></button>' : ''}`;
       const b = $('btnEnter');
       if (b) b.onclick = () => this.gm.selectNode(id);
@@ -312,19 +400,9 @@
 
     unitCardHtml(u, extra) {
       const pct = (u.hp / u.maxHp) * 100;
-      return `<img src="${MG.Assets.portraits[u.id]}" alt=""><div style="flex:1;min-width:0"><div class="nm">${esc(u.def.name)}</div>
+      return `<img src="${this.portrait(u.id)}" alt=""><div style="flex:1;min-width:0"><div class="nm">${esc(u.def.name)}${u.mods.length ? ` <small class="modmark">+${u.mods.length}</small>` : ''}</div>
         <div class="rl">${MG.ROLE_NAMES[u.def.role]} · ${u.hp <= 0 ? '전투 불능' : `${Math.ceil(u.hp)}/${u.maxHp}`}</div>
         <div class="hpbar"><i class="${pct < 35 ? 'low' : ''}" style="width:${pct}%"></i></div></div>${extra || ''}`;
-    }
-
-    unitTip(u) {
-      const s = u.def.stats;
-      const sk = u.def.skill;
-      return `<h4>${esc(u.def.name)} <span class="muted" style="font-size:12px">${esc(u.def.title)}</span></h4>
-        <div class="muted">${MG.ROLE_NAMES[u.def.role]} · ${u.def.attackType === 'melee' ? '근접' : '원거리'} · 체력 ${Math.ceil(u.hp)}/${u.maxHp} · 공격 ${s.atk} · 방어 ${s.def}</div>
-        <b>${esc(sk.name)}</b> <span class="muted">[${SKILL_TYPE[sk.type]} · ${sk.cooldown}초]</span><br>${esc(sk.desc)}${
-        u.def.entry ? `<br><b>${esc(u.def.entry.name)}</b> <span class="muted">[패시브]</span><br>${esc(u.def.entry.desc)}` : ''
-      }`;
     }
 
     /** Map party panel: free re-arrangement + potions. */
@@ -332,9 +410,9 @@
       const run = this.gm.run;
       const P = run.party;
       const el = $('mapParty');
-      let html = '';
+      let html = '<div class="party-cols"><div class="party-field">';
       for (const lane of [0, 1]) {
-        html += `<div class="party-row"><div class="lbl">${LANE_LABEL[lane]}<br>진격로</div>`;
+        html += `<div class="party-row"><div class="lbl">${LANE_LABEL[lane]}</div>`;
         for (const slot of ['back', 'front']) {
           const key = lane + '-' + slot;
           const id = P.slots[key];
@@ -344,18 +422,16 @@
             html += `<div class="pcard ${sel} ${u.hp <= 0 ? 'down' : ''}" data-slot="${key}" data-tip="${esc(this.unitTip(u))}">${this.unitCardHtml(u, this.potionBtn(u))}</div>`;
           } else html += `<div class="pcard empty ${sel}" data-slot="${key}">${SLOT_LABEL[slot]} 비어 있음</div>`;
         }
-        if (lane === 0) {
-          html += `<div class="lbl" style="width:auto;padding:0 8px">대기열</div>`;
-          P.bench.forEach((id, i) => {
-            const u = P.get(id);
-            const sel = this.sel && this.sel.type === 'bench' && this.sel.index === i ? 'sel' : '';
-            html += `<div class="pcard ${sel} ${u.hp <= 0 ? 'down' : ''}" data-bench="${i}" data-tip="${esc(this.unitTip(u))}">${this.unitCardHtml(u, this.potionBtn(u))}</div>`;
-          });
-        } else {
-          html += `<div style="font-size:12px;color:var(--pink-300);padding-left:8px;line-height:1.5;align-self:center">카드 두 장을 차례로 눌러 위치를 바꿉니다.<br>탐사 맵에서는 대기시간 없이 자유롭게 편성할 수 있습니다.</div>`;
-        }
         html += '</div>';
       }
+      html += `</div><div class="party-bench"><div class="lbl2">대기열 · 카드 두 장을 차례로 눌러 위치 교환 (맵에서는 대기시간 없음)</div><div class="bench-wrap">`;
+      P.bench.forEach((id, i) => {
+        const u = P.get(id);
+        const sel = this.sel && this.sel.type === 'bench' && this.sel.index === i ? 'sel' : '';
+        html += `<div class="pcard small ${sel} ${u.hp <= 0 ? 'down' : ''}" data-bench="${i}" data-tip="${esc(this.unitTip(u))}">${this.unitCardHtml(u, this.potionBtn(u))}</div>`;
+      });
+      if (!P.bench.length) html += `<div class="pcard small empty" data-bench="0">대기 없음</div>`;
+      html += '</div></div></div>';
       el.innerHTML = html;
       el.querySelectorAll('.pcard').forEach((c) => {
         c.onclick = (ev) => {
@@ -373,12 +449,13 @@
         b.onclick = () => {
           const r = this.gm.usePotion(b.dataset.id);
           if (!r.ok) this.toast(r.reason);
+          else MG.Audio && MG.Audio.play('potion');
         };
       });
     }
     potionBtn(u) {
       if (u.hp <= 0 || u.hp >= u.maxHp || this.gm.run.potions <= 0) return '';
-      return `<button class="potion" data-id="${u.id}" data-tip="물약 사용: 체력 40% 회복">⚱</button>`;
+      return `<button class="potion" data-id="${u.id}" data-tip="물약 사용">⚱</button>`;
     }
 
     // ---------------------------------------------------------------- battle HUD
@@ -387,31 +464,32 @@
       const n = b.node;
       const t = MG.NODE_TYPES[n.type];
       $('battleTopbar').innerHTML = `<span class="title">${t.icon} ${t.name}</span>${n.defense ? '<span class="tag def">홈 포인트 방어전</span>' : ''}
-        <span class="tag">난이도 ${'★'.repeat(Math.min(5, Math.ceil(n.difficulty / 1.2)))}</span>
+        <span class="tag">난이도 ${stars(n.difficulty)}</span>
         <div class="wave-pips" id="wavePips"></div><span class="phase-label" id="phaseLabel"></span>
         <span class="spacer"></span><div id="battleRes" style="display:flex;gap:14px;align-items:center"></div>
         <button class="tb-btn" id="btnPause">일시정지</button><button class="tb-btn" id="btnSpeed">속도 ×1</button>`;
-      $('btnPause').onclick = () => (this.gm.paused = !this.gm.paused);
+      $('btnPause').onclick = () => {
+        this.gm.paused = !this.gm.paused;
+        MG.Audio && MG.Audio.setDuck(this.gm.paused);
+      };
       $('btnSpeed').onclick = () => {
         this.gm.speed = this.gm.speed === 1 ? 2 : 1;
       };
-      $('laneInfo').innerHTML = [0, 1]
-        .map((l) => `<div class="lane-tag" id="laneTag${l}" style="top:${MG.FormationSystem.G.LANE_Y[l] - 150}px"></div>`)
-        .join('');
+      $('laneInfo').innerHTML = [0, 1].map((l) => `<div class="lane-tag" id="laneTag${l}" style="top:${MG.FormationSystem.G.LANE_Y[l] - 150}px"></div>`).join('');
       this.hudBuiltFor = b;
       this.relicSig = '';
       this.fieldSig = '';
-      if (!this._procBound || this._procBound !== b) {
-        this._procBound = b;
-        b.bus.on('relicProc', ({ id }) => {
-          const el = document.querySelector(`[data-relic="${id}"]`);
-          if (el) {
-            el.classList.remove('flash');
-            void el.offsetWidth;
-            el.classList.add('flash');
-          }
-        });
-      }
+      this.benchSig = '';
+      this.nextSig = '';
+      b.bus.on('relicProc', ({ id }) => {
+        const el = document.querySelector(`[data-relic="${id}"]`);
+        if (el) {
+          el.classList.remove('flash');
+          void el.offsetWidth;
+          el.classList.add('flash');
+        }
+      });
+      if (MG.Audio) MG.Audio.attachBattle(b);
       this.updateBattleHud(true);
     }
 
@@ -425,7 +503,6 @@
       this.lastHud = now;
       const run = gm.run;
 
-      // top bar
       $('wavePips').innerHTML =
         'WAVE ' + b.waves.map((w, i) => `<i class="${i < b.waveIndex || (i === b.waveIndex && ['waveClear', 'nodeClear', 'done'].includes(b.phase)) ? 'done' : i === b.waveIndex ? 'now' : ''}"></i>`).join('');
       $('phaseLabel').textContent = { advance: '▶ 전진 중', combat: '⚔ 전투 중', waveClear: '✔ 웨이브 클리어', nodeClear: '✦ 노드 완료', defeat: '✗ 패배', done: '' }[b.phase];
@@ -435,7 +512,6 @@
       $('btnSpeed').textContent = `속도 ×${gm.speed}`;
       $('pauseOverlay').classList.toggle('hidden', !gm.paused);
 
-      // relic strip (rebuild only when relics change)
       const sig = run.relics.join(',');
       if (sig !== this.relicSig) {
         this.relicSig = sig;
@@ -454,7 +530,6 @@
             .join('')}</div>`;
       }
 
-      // lane threat
       for (const l of [0, 1]) {
         const th = MG.LaneManager.threat(b, l);
         const el = $('laneTag' + l);
@@ -467,13 +542,39 @@
           <div class="lane-meter"><i style="width:${meter}%"></i></div>`;
       }
 
+      this.renderNextPanel(b);
       this.renderField(b);
       this.renderBench(b);
     }
 
+    /** NEXT panel: the upcoming wave per lane (during advance: the wave about to start). */
+    renderNextPanel(b) {
+      let offset = b.phase === 'advance' ? 0 : 1;
+      const last = b.waveIndex + offset >= b.waves.length;
+      const sig = b.waveIndex + ':' + offset + ':' + b.phase;
+      if (sig === this.nextSig) return;
+      this.nextSig = sig;
+      const el = $('nextPanel');
+      if (last) {
+        el.className = b.phase === 'waveClear' ? 'hot' : '';
+        el.innerHTML = `<div class="np-head">NEXT</div><div class="np-last">${b.phase === 'nodeClear' || b.phase === 'done' ? '모든 웨이브 완료' : '마지막 웨이브'}</div>`;
+        return;
+      }
+      const sum = MG.WaveManager.preview(b, offset);
+      const lanes = [0, 1].map((l) => sum.filter((x) => x.lane === l));
+      const icon = (x) => {
+        const src = MG.Assets.enemyIcon(x.enemyId);
+        const flags = `${x.flags.boss ? '<b class="f-boss">보스</b>' : x.flags.elite ? '<b class="f-elite">강적</b>' : ''}${x.flags.flying ? '<i title="비행">✈</i>' : ''}${x.flags.ranged ? '<i title="원거리">➶</i>' : ''}`;
+        return `<span class="np-e" data-tip="${esc(`<h4>${MG.ENEMIES[x.enemyId].name}</h4>${x.count}마리 · 총 체력 약 ${x.totalHp}`)}"><img src="${src}">×${x.count}${flags}</span>`;
+      };
+      el.className = b.phase === 'waveClear' ? 'hot' : '';
+      el.innerHTML = `<div class="np-head">NEXT · WAVE ${b.waveIndex + offset + 1}</div>${lanes
+        .map((ls, i) => `<div class="np-lane"><span class="np-l">${LANE_LABEL[i]}</span>${ls.length ? ls.map(icon).join('') : '<span class="np-none">없음</span>'}</div>`)
+        .join('')}`;
+    }
+
     renderField(b) {
       const P = b.party;
-      // structure signature: rebuild DOM only when composition changes, else patch numbers
       const sig = MG.FormationSystem.allKeys().map((k) => P.slots[k] + ':' + (P.slots[k] && P.get(P.slots[k]).hp <= 0)).join('|') + '|' + Object.keys(P.moving).join(',') + '|' + JSON.stringify(this.sel);
       if (sig !== this.fieldSig) {
         this.fieldSig = sig;
@@ -487,20 +588,18 @@
             const selC = this.sel && this.sel.type === 'slot' && this.sel.key === key ? 'sel' : '';
             if (!id) {
               const mover = Object.entries(P.moving).find(([, m]) => m.toKey === key);
-              html += `<div class="ucard empty ${target}" data-slot="${key}"><span class="slotname">${SLOT_LABEL[slot]}</span>${
-                mover ? `${esc(P.get(mover[0]).def.name)} 이동 중…` : '비어 있음 — 대기 아군 투입 가능'
-              }</div>`;
+              html += `<div class="ucard empty ${target}" data-slot="${key}"><span class="slotname">${SLOT_LABEL[slot]}</span>${mover ? `${esc(P.get(mover[0]).def.name)} 이동 중…` : '비어 있음 — 대기 아군 투입 가능'}</div>`;
               continue;
             }
             const u = P.get(id);
-            const sk = u.def.skill;
+            const sk = MG.SkillSystem.effective(u);
             html += `<div class="ucard ${target} ${selC} ${u.hp <= 0 ? 'down' : ''}" data-slot="${key}" data-tip="${esc(this.unitTip(u))}">
               <span class="slotname">${SLOT_LABEL[slot]}</span>
-              <img class="pt" src="${MG.Assets.portraits[u.id]}" alt="">
+              <img class="pt" src="${this.portrait(u.id)}" alt="">
               <div class="info"><div class="nm">${esc(u.def.name)}<small>${MG.ROLE_NAMES[u.def.role]}</small></div>
                 <div class="hpbar"><i data-hp="${u.id}"></i><i class="sh" data-sh="${u.id}"></i></div><div class="hptxt" data-hpt="${u.id}"></div></div>
-              <button class="mini-btn" data-move="${u.id}" data-tip="진격로 이동 (${MG.FormationSystem.G.LANE_MOVE_TIME}초 동안 전투 이탈)">↕</button>
-              <button class="skill-btn" data-skill="${u.id}" data-tip="${esc(`<h4>${sk.name}</h4><span class="muted">${SKILL_TYPE[sk.type]} · 재사용 ${sk.cooldown}초</span><br>${sk.desc}`)}">
+              <button class="mini-btn" data-move="${u.id}" data-tip="진격로 이동 (${(MG.FormationSystem.G.LANE_MOVE_TIME * MG.RelicSystem.laneMoveMult(b.run)).toFixed(1)}초 동안 전투 이탈)">↕</button>
+              <button class="skill-btn" data-skill="${u.id}" data-tip="${esc(`<h4>${sk.name}</h4><span class="muted">${MG.SKILL_TYPE_NAMES[sk.type]} · 재사용 ${sk.cooldown}초</span><br>${MG.SkillSystem.describe(u)}`)}">
                 <span class="key">${SKILL_KEYS[key]}</span><span class="lbl">${esc(sk.name)}</span><div class="cd" data-cd="${u.id}"></div></button>
             </div>`;
           }
@@ -509,7 +608,6 @@
         $('fieldPanel').innerHTML = html;
         this.bindField(b);
       }
-      // live numbers
       for (const u of P.all()) {
         const hp = document.querySelector(`[data-hp="${u.id}"]`);
         if (!hp) continue;
@@ -520,10 +618,9 @@
         document.querySelector(`[data-hpt="${u.id}"]`).textContent = `${Math.ceil(u.hp)} / ${u.maxHp}${u.b && u.b.shield > 0 ? `  (+${Math.round(u.b.shield)})` : ''}`;
         const cd = document.querySelector(`[data-cd="${u.id}"]`);
         const btn = document.querySelector(`[data-skill="${u.id}"]`);
-        const frac = (u.skillCd || 0) / u.def.skill.cooldown;
-        cd.style.height = frac * 100 + '%';
-        const ok = MG.SkillSystem.canCast(b, u).ok;
-        btn.classList.toggle('ready', ok);
+        const frac = (u.skillCd || 0) / MG.SkillSystem.effective(u).cooldown;
+        cd.style.height = Math.min(1, frac) * 100 + '%';
+        btn.classList.toggle('ready', MG.SkillSystem.canCast(b, u).ok);
       }
       document.querySelectorAll('[data-form]').forEach((f) => (f.disabled = b.formCd[+f.dataset.form] > 0));
     }
@@ -580,11 +677,12 @@
         P.bench.forEach((id) => {
           const u = P.get(id);
           const sel = this.sel && this.sel.type === 'bench' && this.sel.id === id ? 'sel' : '';
-          html += `<div class="pcard ${sel} ${u.hp <= 0 ? 'down' : ''}" data-bench="${id}" data-tip="${esc(this.unitTip(u))}">${this.unitCardHtml(u)}</div>`;
+          html += `<div class="pcard small ${sel} ${u.hp <= 0 ? 'down' : ''}" data-bench="${id}" data-tip="${esc(this.unitTip(u))}">${this.unitCardHtml(u)}</div>`;
         });
-        html += `</div><div class="hint">대기 아군을 누른 뒤 배치 칸을 눌러 교대합니다. 퇴각한 아군의 체력은 유지되며, 대기 중에도 스킬 대기시간은 회복됩니다.</div>`;
+        if (!P.bench.length) html += '<div class="hint">대기 아군 없음 — 동료 노드에서 영입할 수 있습니다.</div>';
+        html += `</div><div class="hint">대기 아군 → 배치 칸 순서로 눌러 교대. 퇴각해도 체력은 유지되고 대기 중에도 스킬 대기시간이 회복됩니다.</div>`;
         $('benchPanel').innerHTML = html;
-        $('benchPanel').querySelectorAll('.pcard').forEach((c) => {
+        $('benchPanel').querySelectorAll('.pcard[data-bench]').forEach((c) => {
           c.onclick = () => {
             const id = c.dataset.bench;
             if (!P.isAlive(id)) {
@@ -600,7 +698,6 @@
           };
         });
       }
-      // live bench hp
       P.bench.forEach((id) => {
         const c = $('benchPanel').querySelector(`[data-bench="${id}"] .hpbar i`);
         const u = P.get(id);
@@ -608,143 +705,9 @@
       });
       $('swapCd').innerHTML = tag ? `<span style="color:#7fd8ff">연계 교대 가능 (${LANE_LABEL[tag.lane]})</span>` : cdTxt;
     }
-
-    // ---------------------------------------------------------------- reward / relic pick
-    relicCardHtml(id, i) {
-      const r = MG.RELICS[id];
-      const run = this.gm.run;
-      const syns = Object.values(MG.SYNERGIES).filter((s) => (s.requires.relics || []).includes(id) || (s.requires.tagCount && r.tags.includes(s.requires.tagCount.tag)));
-      const synHtml = syns
-        .map((s) => {
-          const others = (s.requires.relics || []).filter((x) => x !== id);
-          const ownedAll = others.every((x) => run.relics.includes(x));
-          return `<div><b>✧ ${esc(s.name)}</b> ${others.length ? '— ' + others.map((x) => `<span class="${run.relics.includes(x) ? 'ok' : ''}">${esc(MG.RELICS[x].name)}</span>`).join(' + ') : ''}${
-            ownedAll && others.length ? ' <span class="ok">(획득 시 활성!)</span>' : ''
-          }</div>`;
-        })
-        .join('');
-      return `<div class="rcard ${r.rarity}" data-i="${i}"><span class="rar">${MG.RARITY[r.rarity].name}${r.tags.includes('fire') ? ' · 불' : ''}</span>
-        <div class="big">${r.icon}</div><h3>${esc(r.name)}</h3><div class="trig">발동: ${esc(r.trigger)}${r.stackable ? ' · 중첩 가능' : ''}</div><div class="desc">${esc(r.desc)}</div>
-        ${synHtml ? `<div class="syns">${synHtml}</div>` : ''}</div>`;
-    }
-
-    renderReward() {
-      const ctx = this.gm.ctx;
-      this.show('screen-reward');
-      $('screen-battle').classList.add('active'); // keep the battlefield visible under the overlay
-      $('battleHud').style.visibility = 'hidden';
-      $('rewardTitle').textContent = 'NODE CLEAR — 보상 선택';
-      $('rewardSub').innerHTML = `별조각 <b style="color:var(--gold)">+${ctx.rewards.shards}</b> 획득 · 아래에서 보상 하나를 선택하세요`;
-      $('rewardCards').innerHTML = ctx.rewards.options
-        .map((o, i) =>
-          o.kind === 'relic'
-            ? this.relicCardHtml(o.relicId, i)
-            : `<div class="rcard alt" data-i="${i}"><span class="rar">${o.kind === 'heal' ? '회복' : '탐사'}</span><div class="big">${o.kind === 'heal' ? '⚕' : '🗺'}</div><h3>${esc(o.label)}</h3><div class="desc">${esc(o.desc)}</div></div>`
-        )
-        .join('');
-      $('rewardCards').querySelectorAll('.rcard').forEach((c) => {
-        c.onclick = () => {
-          $('battleHud').style.visibility = '';
-          const msg = this.gm.chooseReward(+c.dataset.i);
-          if (msg) this.toast(msg);
-        };
-      });
-    }
-
-    renderRelicPick() {
-      const ctx = this.gm.ctx;
-      this.show('screen-reward');
-      $('rewardTitle').textContent = '봉인된 유물함';
-      $('rewardSub').textContent = '세 개의 유물 중 하나를 가져갈 수 있습니다.';
-      $('rewardCards').innerHTML = ctx.choices.map((id, i) => this.relicCardHtml(id, i)).join('');
-      $('rewardCards').querySelectorAll('.rcard').forEach((c) => {
-        c.onclick = () => {
-          const id = ctx.choices[+c.dataset.i];
-          if (this.gm.pickRelic(id)) this.toast(`${MG.RELICS[id].name} 획득`);
-        };
-      });
-    }
-
-    // ---------------------------------------------------------------- event / rest
-    typeText(text) {
-      const el = $('eventText');
-      clearInterval(this._typeT);
-      let i = 0;
-      el.textContent = '';
-      this._typeT = setInterval(() => {
-        i += 2;
-        el.textContent = text.slice(0, i);
-        if (i >= text.length) clearInterval(this._typeT);
-      }, 22);
-    }
-
-    renderEvent() {
-      const ev = this.gm.ctx.event;
-      this.show('screen-event');
-      MG.SceneArt.drawEvent($('eventCanvas'), ev.art, ev.speaker, this.gm.run.party);
-      $('eventKicker').textContent = 'EVENT · 사건';
-      $('eventTitle').textContent = ev.title;
-      $('eventSpeaker').textContent = ev.speaker;
-      this.typeText(ev.text);
-      $('eventChoices').innerHTML = ev.choices
-        .map((c, i) => {
-          const ok = MG.NodeManager.requirementMet(this.gm.run, c);
-          return `<button class="choice-btn" data-i="${i}" ${ok ? '' : 'disabled'}><span>${esc(c.label)}${ok ? '' : '<small class="req">별조각 부족</small>'}</span></button>`;
-        })
-        .join('');
-      $('eventChoices').querySelectorAll('button').forEach((b) => {
-        b.onclick = () => {
-          const res = this.gm.chooseEvent(+b.dataset.i);
-          if (res) this.showResolved(res.text);
-        };
-      });
-    }
-
-    renderRest() {
-      this.show('screen-event');
-      const P = this.gm.run.party;
-      MG.SceneArt.drawEvent($('eventCanvas'), 'rest', '아모레', P);
-      $('eventKicker').textContent = 'REST · 휴식';
-      $('eventTitle').textContent = '달빛 아래의 야영지';
-      $('eventSpeaker').textContent = '아모레';
-      const fallen = P.all().filter((u) => u.hp <= 0);
-      this.typeText(`잠깐 쉬어 가자. 다들 많이 지쳤지?${fallen.length ? `\n(쓰러진 동료: ${fallen.map((u) => u.def.name).join(', ')})` : ''}`);
-      const opts = [];
-      MG.REST_OPTIONS.forEach((o) => {
-        if (o.id === 'revive' && fallen.length > 1) {
-          for (const f of fallen) opts.push({ id: 'revive', target: f.id, label: `${f.def.name}을(를) 간호한다`, desc: '체력 50%로 부활' });
-        } else opts.push({ id: o.id, label: o.label, desc: o.desc });
-      });
-      $('eventChoices').innerHTML = opts
-        .map((o, i) => `<button class="choice-btn" data-i="${i}"><span>${esc(o.label)}<small>${esc(o.desc)}</small></span></button>`)
-        .join('');
-      $('eventChoices').querySelectorAll('button').forEach((b) => {
-        b.onclick = () => {
-          const o = opts[+b.dataset.i];
-          const res = this.gm.chooseRest(o.id, o.target);
-          if (res) this.showResolved(res.text);
-        };
-      });
-    }
-
-    showResolved(text) {
-      this.typeText(text);
-      $('eventChoices').innerHTML = `<button class="choice-btn dark" id="btnContinue"><span>계속</span></button>`;
-      $('btnContinue').onclick = () => this.gm.finishNode();
-    }
-
-    // ---------------------------------------------------------------- result
-    renderResult(win) {
-      this.show('screen-result');
-      const run = this.gm.run;
-      $('resultTitle').textContent = win ? '탐사 성공' : '탐사 실패';
-      $('resultTitle').style.color = win ? '#ffe9f5' : '#ff6b8a';
-      $('resultSub').textContent = win ? `「${MG.RUN_CONFIG.regionName}」를 정화했습니다.` : '마법소녀들은 후퇴했습니다… 다음 탐사에서 다시 도전하세요.';
-      $('resultStats').innerHTML = `완료한 노드 ${run.stats.nodes} · 전투 ${run.stats.battles} · 처치한 적 ${run.stats.kills}<br>
-        획득 유물 ${run.relics.length}개 · 활성 시너지 ${MG.RelicSystem.synergyStatus(run).filter((s) => s.active).length}개 · 남은 생명 ${run.life}<br>
-        <span style="color:var(--pink-300);font-size:13px">영구 성장 요소는 아직 없습니다 — 새 탐사는 처음 상태에서 시작합니다. (시드 ${run.seed})</span>`;
-    }
   }
 
+  UIManager.SLOT_LABEL = SLOT_LABEL;
+  UIManager.LANE_LABEL = LANE_LABEL;
   MG.UIManager = UIManager;
 })();

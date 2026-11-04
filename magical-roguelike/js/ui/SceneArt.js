@@ -2,7 +2,8 @@
 (function () {
   const MG = (window.MG = window.MG || {});
 
-  const SPEAKER_CHAR = { 로젤: 'rozel', 실피: 'sylphy', 벨라: 'bella', 루나: 'luna', 아모레: 'amore', 청련: 'cheongryeon' };
+  const SPEAKER_CHAR = {};
+  for (const c of Object.values(MG.CHARACTERS || {})) SPEAKER_CHAR[c.name] = c.id;
 
   function bg(g, top, bottom) {
     const grad = g.createLinearGradient(0, 0, 0, 720);
@@ -113,6 +114,146 @@
       g.ellipse(760, 290, 10, 22, 0, 0, Math.PI * 2);
       g.fill();
     },
+    clocktower(g) {
+      bg(g, '#120d22', '#2a1f3d');
+      g.fillStyle = '#1d1430';
+      g.fillRect(660, 80, 200, 460);
+      g.beginPath();
+      g.moveTo(650, 80);
+      g.lineTo(760, 0);
+      g.lineTo(870, 80);
+      g.fill();
+      g.fillStyle = '#e8dcc0';
+      g.beginPath();
+      g.arc(760, 200, 70, 0, Math.PI * 2);
+      g.fill();
+      g.strokeStyle = '#2a1f3d';
+      g.lineWidth = 6;
+      g.beginPath();
+      g.moveTo(760, 200);
+      g.lineTo(760, 145);
+      g.moveTo(760, 200);
+      g.lineTo(800, 200);
+      g.stroke();
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        g.fillStyle = '#2a1f3d';
+        g.fillRect(760 + Math.cos(a) * 58 - 3, 200 + Math.sin(a) * 58 - 3, 6, 6);
+      }
+    },
+    hound(g) {
+      bg(g, '#0d0a14', '#241830');
+      g.fillStyle = '#05030a';
+      g.beginPath();
+      g.ellipse(800, 430, 150, 60, 0, 0, Math.PI * 2);
+      g.fill();
+      g.beginPath();
+      g.ellipse(920, 360, 60, 50, 0, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = '#ff3b5c';
+      g.fillRect(930, 350, 14, 6);
+      g.fillRect(900, 350, 14, 6);
+    },
+    well(g) {
+      bg(g, '#0f1424', '#1d2a3a');
+      g.fillStyle = '#4a4560';
+      g.fillRect(660, 340, 220, 140);
+      g.fillStyle = '#2a2638';
+      g.beginPath();
+      g.ellipse(770, 340, 110, 30, 0, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = '#9fd8ff';
+      for (let i = 0; i < 14; i++) g.fillRect(700 + ((i * 37) % 140), 330 + ((i * 13) % 20), 3, 3);
+    },
+    library(g) {
+      bg(g, '#140f0f', '#2b1d1a');
+      for (let x = 440; x < 1240; x += 160) {
+        g.fillStyle = '#3a2620';
+        g.fillRect(x, 90, 130, 420);
+        for (let y = 110; y < 500; y += 46) {
+          for (let b = 0; b < 8; b++) {
+            g.fillStyle = ['#7a3f3f', '#3f5a7a', '#6b5a2a', '#4a3a5e'][(b + y) % 4];
+            g.fillRect(x + 6 + b * 15, y, 12, 38);
+          }
+        }
+      }
+    },
+    forge(g) {
+      bg(g, '#120a08', '#2e1a10');
+      const glow = g.createRadialGradient(780, 420, 10, 780, 420, 260);
+      glow.addColorStop(0, 'rgba(255,120,40,0.6)');
+      glow.addColorStop(1, 'rgba(255,120,40,0)');
+      g.fillStyle = glow;
+      g.fillRect(0, 0, 1280, 720);
+      g.fillStyle = '#2a2a30';
+      g.fillRect(700, 420, 180, 50);
+      g.fillRect(740, 470, 100, 60);
+    },
+    altar(g) {
+      bg(g, '#100816', '#2a0f24');
+      g.fillStyle = '#3a2440';
+      g.fillRect(650, 380, 260, 110);
+      g.fillStyle = '#d8b5ff';
+      g.fillRect(770, 220, 12, 150);
+      g.fillRect(740, 250, 72, 12);
+      const glow = g.createRadialGradient(776, 300, 10, 776, 300, 200);
+      glow.addColorStop(0, 'rgba(200,160,255,0.35)');
+      glow.addColorStop(1, 'rgba(200,160,255,0)');
+      g.fillStyle = glow;
+      g.fillRect(0, 0, 1280, 720);
+    },
+    feast(g) {
+      bg(g, '#0b1410', '#1d2a22');
+      g.fillStyle = '#5b3d2a';
+      g.fillRect(560, 400, 520, 30);
+      for (let i = 0; i < 9; i++) {
+        g.fillStyle = ['#ff9fb8', '#ffd66b', '#9fe0a4'][i % 3];
+        g.beginPath();
+        g.arc(600 + i * 56, 390, 14, 0, Math.PI * 2);
+        g.fill();
+      }
+      for (let i = 0; i < 30; i++) {
+        g.fillStyle = 'rgba(255,240,180,0.7)';
+        g.fillRect(450 + ((i * 97) % 800), 60 + ((i * 53) % 260), 3, 3);
+      }
+    },
+    shrine(g) {
+      bg(g, '#0e0c1c', '#22203a');
+      g.fillStyle = '#2e2a48';
+      g.fillRect(640, 200, 280, 300);
+      g.beginPath();
+      g.moveTo(620, 200);
+      g.lineTo(780, 110);
+      g.lineTo(940, 200);
+      g.fill();
+      g.fillStyle = '#ffe9a8';
+      g.fillRect(760, 300, 40, 60);
+    },
+    cart(g) {
+      bg(g, '#120e0a', '#2a2216');
+      g.fillStyle = '#5b3d22';
+      g.fillRect(640, 340, 300, 110);
+      g.fillStyle = '#2a1c10';
+      g.beginPath();
+      g.arc(690, 460, 34, 0, Math.PI * 2);
+      g.arc(890, 460, 34, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = '#f2c14e';
+      for (let i = 0; i < 12; i++) g.fillRect(660 + i * 22, 325 - (i % 3) * 6, 10, 10);
+    },
+    stars(g) {
+      bg(g, '#070514', '#1a1236');
+      for (let i = 0; i < 120; i++) {
+        g.fillStyle = i % 5 ? '#c7b9ff' : '#fff';
+        g.fillRect((i * 131) % 1280, (i * 71) % 520, 2, 2);
+      }
+      g.strokeStyle = 'rgba(255,240,200,0.8)';
+      g.lineWidth = 3;
+      g.beginPath();
+      g.moveTo(1100, 80);
+      g.lineTo(820, 260);
+      g.stroke();
+    },
     rest(g) {
       bg(g, '#0e0b1a', '#1f1a2e');
       const glow = g.createRadialGradient(760, 430, 10, 760, 430, 320);
@@ -136,6 +277,23 @@
   };
 
   const SceneArt = {
+    drawShop(canvas) {
+      const g = canvas.getContext('2d');
+      bg(g, '#140c18', '#2a1a2a');
+      g.fillStyle = '#3a2440';
+      for (let x = 0; x < 1280; x += 160) g.fillRect(x + 20, 120, 120, 8);
+      const glow = g.createRadialGradient(640, 300, 40, 640, 300, 600);
+      glow.addColorStop(0, 'rgba(255,190,120,0.18)');
+      glow.addColorStop(1, 'rgba(255,190,120,0)');
+      g.fillStyle = glow;
+      g.fillRect(0, 0, 1280, 720);
+      const doll = MG.Assets.enemyFrames.doll;
+      if (doll) {
+        g.imageSmoothingEnabled = false;
+        g.drawImage(doll[0].normal, 40, 520, 96, 128);
+      }
+      vignette(g);
+    },
     SPEAKER_CHAR,
     /** Paint an event backdrop; party members stand on the left (speaker in front, larger). */
     drawEvent(canvas, artKey, speaker, party) {
@@ -165,7 +323,7 @@
       const ids = Object.keys(MG.CHARACTERS);
       ids.forEach((id, i) => {
         const frame = [0, 1, 2, 1][Math.floor(t * 8 + i) % 4];
-        MG.Assets.drawFrame(g, id, 'walk', frame, 300 + i * 120, 506 + (i % 2) * 6, 1.5);
+        MG.Assets.drawFrame(g, id, 'walk', frame, 150 + i * (1000 / Math.max(1, ids.length - 1)), 506 + (i % 2) * 8, 1.35);
       });
       g.fillStyle = 'rgba(20,10,25,0.55)';
       g.fillRect(0, 0, 1280, 720);
