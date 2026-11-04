@@ -79,6 +79,94 @@ SHEETS = {
 }
 
 
+CELL = 800 / 30  # checkerboard square size in the baked-transparency sheets
+
+
+def fit_gray(band):
+    """Grey value of the checkerboard's dark squares in this band."""
+    c = band.astype(int)
+    g = c.mean(axis=2)
+    sat = c.max(axis=2) - c.min(axis=2)
+    m = (sat <= 4) & (g >= 195) & (g < 240)
+    return float(np.median(g[m])) if m.any() else 212.0
+
+
+def remove_checker(cell, gray):
+    """Background removal for sheets with a baked checkerboard.
+    1) strict flood fill: only the two exact checker greys (255 / sheet grey) count as background,
+       so pale hair, skin and wings survive;
+    2) soft glows: each remaining pixel near the background is un-matted against the colour of
+       its nearest background pixel (same checker square), which removes the square pattern."""
+    c = cell.astype(float)
+    h, w = c.shape[:2]
+    g = c.mean(axis=2)
+    sat = c.max(axis=2) - c.min(axis=2)
+    strict = (sat <= 4) & ((g >= 251) | (np.abs(g - gray) <= 5))
+    # row labels ("Walk 1"): small dark components in the top strip count as background
+    top = np.zeros((h, w), bool)
+    top[:34] = True
+    tlab, _ = ndimage.label(ndimage.binary_dilation((g < 130) & top))
+    for i, sl in enumerate(ndimage.find_objects(tlab), start=1):
+        if sl is None:
+            continue
+        if sl[0].stop < 34 and (sl[0].stop - sl[0].start) < 26:
+            strict[sl] |= tlab[sl] == i
+    lab, _ = ndimage.label(strict)
+    border = set(np.unique(np.concatenate([lab[0, :], lab[-1, :], lab[:, 0], lab[:, -1]]))) - {0}
+    bg = np.isin(lab, list(border))
+    # anti-aliased seams between checker squares: pale neutral pixels hugging the background
+    seam_like = (sat <= 6) & (g >= 200)
+    for _ in range(3):
+        bg |= seam_like & ndimage.binary_dilation(bg)
+    # also drop large enclosed checker pockets (e.g. between wing and body)
+    for i, sl in enumerate(ndimage.find_objects(lab), start=1):
+        if i in border or sl is None:
+            continue
+        comp = lab[sl] == i
+        if comp.sum() > 250:
+            bg[sl] |= comp
+    _, (iy, ix) = ndimage.distance_transform_edt(~bg, return_indices=True)
+    pred = g[iy, ix]  # local checker grey for every pixel
+    diff = np.abs(c - pred[..., None]).max(axis=2)
+    bg |= (diff < 14) & ndimage.binary_dilation(bg, iterations=2)  # residue of the squares
+    soft_like = (diff < 70) & ~bg
+    slab, _ = ndimage.label(soft_like | bg)
+    touching = set(np.unique(slab[bg])) - {0}
+    soft = np.isin(slab, list(touching)) & ~bg
+    soft &= ndimage.distance_transform_edt(~bg) <= 16  # never reach deep into the figure (pale faces)
+    alpha = np.full((h, w), 255.0)
+    alpha[bg] = 0
+    a_soft = np.clip((diff[soft] - 10) / 60.0, 0.06, 1.0)
+    alpha[soft] = a_soft * 255
+    out = c.copy()
+    out[soft] = np.clip(pred[soft][:, None] + (c[soft] - pred[soft][:, None]) / a_soft[:, None], 0, 255)
+    osat = out.max(axis=2) - out.min(axis=2)
+    alpha[soft & (alpha < 90) & (osat < 40)] = 0  # pale, nearly transparent seam residue
+    keep = alpha > 0
+    flab, _ = ndimage.label(keep)
+    final = np.zeros_like(keep)
+    for i, sl in enumerate(ndimage.find_objects(flab), start=1):
+        comp = flab[sl] == i
+        area = int(comp.sum())
+        if area < 12:
+            continue
+        if sl[0].stop < 32 and (sl[0].stop - sl[0].start) < 24 and area < 1200:
+            continue  # label text ("Walk 1")
+        final[sl] |= comp
+    # drop small leftovers (checker seams) that are far from the main figure
+    flab, n = ndimage.label(final)
+    if n > 1:
+        sizes = ndimage.sum(final, flab, range(1, n + 1))
+        main = flab == (int(np.argmax(sizes)) + 1)
+        dist = ndimage.distance_transform_edt(~main)
+        for i in range(1, n + 1):
+            comp = flab == i
+            if sizes[i - 1] < 300 and dist[comp].min() > 12:
+                final[comp] = False
+    alpha[~final] = 0
+    return np.dstack([out.astype(np.uint8), alpha.astype(np.uint8)]), final
+
+
 def remove_background(cell, checker=False):
     """cell: HxWx3 uint8. Returns RGBA with the paper/grid background made transparent."""
     c = cell.astype(int)
@@ -132,9 +220,13 @@ def extract(char_id, fname, layout, checker=False):
         bot = min(bot, H - 1)
         floor = bot  # anchor line = bottom of the row box
         frames[anim] = []
+        gray = fit_gray(im[top:bot, :]) if checker else None
         for (x0, x1) in CELLS[anim]:
             cell = im[top:bot, x0:x1]
-            rgba, keep = remove_background(cell, checker)
+            if checker:
+                rgba, keep = remove_checker(cell, gray)
+            else:
+                rgba, keep = remove_background(cell, checker)
             ys, xs = np.nonzero(keep)
             if len(xs) == 0:
                 continue
