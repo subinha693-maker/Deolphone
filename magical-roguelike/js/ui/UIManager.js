@@ -194,8 +194,22 @@
       $('mapTopbar').innerHTML = `<span class="title">${esc(MG.RUN_CONFIG.regionName)}</span><span class="tag">탐사 ${run.completed.size}/${run.map.columns.length} 구역</span>
         <span class="spacer"></span>${this.resourcesHtml()}<button class="tb-btn" id="btnAbandon">탐사 포기</button>`;
       this.bindRelicButton();
-      $('btnAbandon').onclick = () => {
-        if (confirm('현재 탐사를 포기하고 새로 시작할까요?')) gm.newRun();
+      // two-step confirmation inside the page (native confirm() is unavailable in sandboxed viewers)
+      $('btnAbandon').onclick = (ev) => {
+        const b = ev.currentTarget;
+        if (b.dataset.armed) {
+          gm.newRun();
+          return;
+        }
+        b.dataset.armed = '1';
+        b.textContent = '한 번 더 눌러 포기';
+        b.classList.add('on');
+        setTimeout(() => {
+          if (!b.isConnected) return;
+          delete b.dataset.armed;
+          b.textContent = '탐사 포기';
+          b.classList.remove('on');
+        }, 3000);
       };
 
       const X0 = 90;
