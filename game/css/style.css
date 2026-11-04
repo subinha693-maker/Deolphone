@@ -298,17 +298,25 @@ button { font-family: inherit; color: inherit; }
   --pad: clamp(104px, 30vh, 156px);
   --act: clamp(64px, 18vh, 92px);
 }
-#pad .pad-base, #pad .pad-act { opacity: 0; transition: opacity .25s; pointer-events: none; }
-#pad.show .pad-base, #pad.show .pad-act { opacity: 1; pointer-events: auto; }
+#pad .pad-zone, #pad .pad-act { opacity: 0; transition: opacity .25s; pointer-events: none; }
+#pad.show .pad-zone, #pad.show .pad-act { opacity: 1; pointer-events: auto; }
+/* 조이스틱을 잡을 수 있는 영역: 화면 왼쪽 절반 (위쪽 버튼 줄 제외) */
+.pad-zone {
+  position: absolute; left: 0; bottom: 0;
+  width: 50%; height: calc(100vh - 64px);
+  touch-action: none;
+}
 .pad-base {
   position: absolute;
   left: calc(18px + var(--safe-l)); bottom: calc(18px + var(--safe-b));
+  opacity: .78; transition: opacity .15s;
   width: var(--pad); height: var(--pad); border-radius: 50%;
   background: radial-gradient(circle, rgba(246, 226, 238, .55), rgba(110, 74, 101, .35));
   border: 3px solid rgba(62, 42, 59, .75);
   box-shadow: inset 0 0 0 2px rgba(251, 238, 245, .6);
   touch-action: none;
 }
+.pad-base.active { opacity: 1; }
 .pad-base::before {   /* 방향 표시 */
   content: ''; position: absolute; inset: 14%;
   background:

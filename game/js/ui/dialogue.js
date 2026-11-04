@@ -53,9 +53,16 @@ WS.Dialogue = class {
     this.expr = this.expr || {};
     if (expr) this.expr[charId] = expr;
     const e = this.expr[charId];
+    const run = this.game.state;
+    // 각성(변신) 후: 직업별 표정 → 없으면 그 직업의 초상화
+    if (e && ch.jobExpressions && run.player.awakened) {
+      const set = ch.jobExpressions[run.player.jobId];
+      if (set && set[e]) return set[e];
+      const job = WS.getJob(run.player.jobId);
+      if (ch.expressions && ch.expressions[e] && job) return job.portrait;
+    }
     if (e && ch.expressions && ch.expressions[e]) return ch.expressions[e];
     if (e && ch.expressions) console.warn('[dialogue] 없는 표정:', charId, e);
-    const run = this.game.state;
     if (ch.usesJobPortrait && run.player.awakened) {
       const job = WS.getJob(run.player.jobId);
       if (job) return job.portrait;

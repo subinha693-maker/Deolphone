@@ -53,41 +53,68 @@ WS.MapView = class {
   // ---------------- 조이스틱 + 조사 버튼 ----------------
   bindPad() {
     const pad = this.pad = document.getElementById('pad');
+    const zone = pad.querySelector('.pad-zone');
     const base = pad.querySelector('.pad-base');
     const knob = pad.querySelector('.pad-knob');
     const act = pad.querySelector('.pad-act');
-    let pid = null;
+    let pid = null, cx = 0, cy = 0;
     const setKnob = (x, y) => { knob.style.setProperty('--kx', x + 'px'); knob.style.setProperty('--ky', y + 'px'); };
+    // 떠다니는 조이스틱: 왼쪽 영역 어디를 눌러도 그 자리가 중심이 된다
+    const place = (x, y) => {
+      const R = base.offsetWidth / 2;
+      const zr = zone.getBoundingClientRect();
+      cx = Math.min(Math.max(x, zr.left + R + 4), zr.right - R - 4);
+      cy = Math.min(Math.max(y, zr.top + R + 4), zr.bottom - R - 4);
+      base.style.left = (cx - zr.left - R) + 'px';
+      base.style.top = (cy - zr.top - R) + 'px';
+      base.style.bottom = 'auto';
+      base.classList.add('active');
+    };
     const track = e => {
-      const r = base.getBoundingClientRect();
-      const R = r.width / 2;
-      let dx = e.clientX - (r.left + R), dy = e.clientY - (r.top + R);
-      const dist = Math.hypot(dx, dy), max = R * 0.6;
+      const R = base.offsetWidth / 2;
+      let dx = e.clientX - cx, dy = e.clientY - cy;
+      const dist = Math.hypot(dx, dy), max = R * 0.62;
       if (dist > max) { dx *= max / dist; dy *= max / dist; }
       setKnob(dx, dy);
-      // 가운데 25% 는 멈춤, 그 밖에서는 더 많이 기운 축의 방향
-      this.stickDir = dist < R * 0.25 ? null
-        : Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+      if (dist < R * 0.2) { this.stickDir = null; return; }
+      // 축 전환에 여유(히스테리시스)를 두어 대각선 근처에서 방향이 떨리지 않게
+      const ax = Math.abs(dx), ay = Math.abs(dy);
+      const cur = this.stickDir;
+      const curH = cur === 'left' || cur === 'right';
+      let horiz = ax > ay;
+      if (cur) horiz = curH ? ax > ay * 0.75 : ax > ay * 1.33;
+      this.stickDir = horiz ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
     };
-    const release = () => { pid = null; this.stickDir = null; setKnob(0, 0); };
+    const release = () => {
+      pid = null; this.stickDir = null; setKnob(0, 0);
+      base.classList.remove('active');
+      base.style.left = base.style.top = base.style.bottom = '';
+    };
     this._pad = {
-      down: e => { e.preventDefault(); e.stopPropagation(); pid = e.pointerId; try { base.setPointerCapture(pid); } catch (_) {} track(e); },
-      move: e => { if (e.pointerId === pid) track(e); },
+      down: e => {
+        e.preventDefault(); e.stopPropagation();
+        if (pid !== null) return;
+        pid = e.pointerId;
+        try { zone.setPointerCapture(pid); } catch (_) {}
+        place(e.clientX, e.clientY);
+        track(e);
+      },
+      move: e => { if (e.pointerId === pid) { e.preventDefault(); track(e); } },
       up: e => { if (e.pointerId === pid) release(); },
       act: e => {
         e.preventDefault(); e.stopPropagation();
         act.classList.add('hit'); setTimeout(() => act.classList.remove('hit'), 120);
-        this.onActionKey();
+        if (this.onActionKey() && navigator.vibrate) { try { navigator.vibrate(12); } catch (_) {} }
       },
       stop: e => e.stopPropagation(),
       release,
     };
-    base.addEventListener('pointerdown', this._pad.down);
-    base.addEventListener('pointermove', this._pad.move);
-    base.addEventListener('pointerup', this._pad.up);
-    base.addEventListener('pointercancel', this._pad.up);
-    base.addEventListener('lostpointercapture', this._pad.up);
-    base.addEventListener('click', this._pad.stop);
+    zone.addEventListener('pointerdown', this._pad.down);
+    zone.addEventListener('pointermove', this._pad.move);
+    zone.addEventListener('pointerup', this._pad.up);
+    zone.addEventListener('pointercancel', this._pad.up);
+    zone.addEventListener('lostpointercapture', this._pad.up);
+    zone.addEventListener('click', this._pad.stop);
     act.addEventListener('pointerdown', this._pad.act);
     act.addEventListener('click', this._pad.stop);
   }
@@ -95,19 +122,20 @@ WS.MapView = class {
   unbindPad() {
     const pad = this.pad;
     if (!pad || !this._pad) return;
-    const base = pad.querySelector('.pad-base'), act = pad.querySelector('.pad-act');
-    base.removeEventListener('pointerdown', this._pad.down);
-    base.removeEventListener('pointermove', this._pad.move);
-    base.removeEventListener('pointerup', this._pad.up);
-    base.removeEventListener('pointercancel', this._pad.up);
-    base.removeEventListener('lostpointercapture', this._pad.up);
-    base.removeEventListener('click', this._pad.stop);
+    const zone = pad.querySelector('.pad-zone'), act = pad.querySelector('.pad-act');
+    zone.removeEventListener('pointerdown', this._pad.down);
+    zone.removeEventListener('pointermove', this._pad.move);
+    zone.removeEventListener('pointerup', this._pad.up);
+    zone.removeEventListener('pointercancel', this._pad.up);
+    zone.removeEventListener('lostpointercapture', this._pad.up);
+    zone.removeEventListener('click', this._pad.stop);
     act.removeEventListener('pointerdown', this._pad.act);
     act.removeEventListener('click', this._pad.stop);
     this._pad.release();
     pad.classList.remove('show');
     act.classList.remove('ready');
   }
+
 
   /** 장면 종료 시 반드시 호출 (입력 리스너 정리) */
   detach() {
@@ -173,7 +201,8 @@ WS.MapView = class {
     const [dx, dy] = WS.DIRS[dir];
     const nx = actor.x + dx, ny = actor.y + dy;
     if (actor === this.player ? !this.passable(nx, ny) : !this.passable(nx, ny) || (this.player.x === nx && this.player.y === ny)) return false;
-    actor.move = { fx: actor.x, fy: actor.y, tx: nx, ty: ny, t: 0 };
+    actor.move = { fx: actor.x, fy: actor.y, tx: nx, ty: ny, t: actor.carry || 0 };
+    actor.carry = 0;
     actor.x = nx; actor.y = ny;
     return true;
   }
@@ -294,15 +323,17 @@ WS.MapView = class {
   // ---------------- 갱신 ----------------
   update(dt) {
     this.time += dt;
-    const STEP = 0.24;   // 한 칸 이동 시간(초)
+    const STEP = 0.2;    // 한 칸 이동 시간(초)
     for (const a of [this.player, ...Object.values(this.npcs)]) {
       if (a.move) {
         a.move.t += dt / STEP;
+        a.carry = 0;
         a.walk += dt;
         const k = Math.min(1, a.move.t);
         a.px = (a.move.fx + (a.move.tx - a.move.fx) * k) * this.T;
         a.py = (a.move.fy + (a.move.ty - a.move.fy) * k) * this.T;
         if (k >= 1) {
+          a.carry = Math.min(0.5, a.move.t - 1);   // 남은 진행량 → 다음 칸에 이어 붙인다
           a.move = null;
           if (a === this.player) this.savePosition();
         }

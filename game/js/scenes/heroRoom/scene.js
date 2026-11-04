@@ -44,6 +44,7 @@ window.WS = window.WS || {};
         game.ui.hud.refresh();
       }
       const run = game.state;
+      if (payload && payload.from === 'whiteSpace') game.recordPrologueClear();   // 프롤로그 완료 기록 (회차 데이터)
       run.sceneId = ID;
       const sd = WS.State.sceneData(run, ID);
       const st = game.stage;

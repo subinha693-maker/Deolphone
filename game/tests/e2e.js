@@ -36,6 +36,23 @@ async function openGame(browser, viewport) {
 const tapStage = (page) => page.evaluate(() => document.getElementById('game').click());
 const isShown = (page, sel) => page.evaluate(s => document.querySelector(s).classList.contains('show'), sel);
 
+/** 페이지 안에서 대사를 빠르게 넘기며 cond 가 참이 될 때까지 진행 (선택지 · 입력 창에서는 멈춤) */
+async function ff(page, cond, maxMs = 90000) {
+  return page.evaluate(async ([src, maxMs]) => {
+    const cond = new Function('return (' + src + ')()');
+    const t0 = performance.now();
+    while (performance.now() - t0 < maxMs) {
+      if (cond()) return true;
+      const d = WS.game.ui.dialogue;
+      if (WS.game.ui.modalOpen) { await new Promise(r => setTimeout(r, 40)); continue; }
+      if (d.mode === 'typing') d.finishTyping();
+      else if (d.mode === 'waiting' && performance.now() - d.completedAt > 95) d.advance();
+      await new Promise(r => setTimeout(r, 20));
+    }
+    return cond();
+  }, [cond.toString(), maxMs]);
+}
+
 /** 이름 입력 창에 이름을 쓰고 확정 */
 async function fillName(page, name) {
   await page.waitForFunction(() => document.querySelector('#name-input').classList.contains('show'));
@@ -139,8 +156,8 @@ async function playthrough(browser, jobId, viewport, opts = {}) {
   check(`${tag} 종료 버튼은 일반 탭으로 넘어가지 않음`, notYet);
   await page.click('.choices.end button');
   await page.waitForTimeout(1900);
-  const next = await page.evaluate(() => ({ scene: WS.game.state.sceneId, shown: document.querySelector('#next-scene').classList.contains('show') }));
-  check(`${tag} 종료 버튼 → 다음 장면 전환 함수 동작`, next.scene === 'chapter1' && next.shown);
+  const next = await page.evaluate(() => ({ scene: WS.game.state.sceneId, cur: WS.game.scenes.current, map: WS.game.stage.view instanceof WS.MapView, job: WS.game.state.player.jobId, spr: WS.game.stage.view && WS.game.stage.view.player.sprite }));
+  check(`${tag} 종료 버튼 → 주인공의 방으로 이어짐 (직업 · 의상 유지)`, next.scene === 'heroRoom' && next.cur === 'heroRoom' && next.map && next.job === jobId && next.spr === jobId, JSON.stringify(next));
   await shot(page, `${jobId}-8-next`);
 
   // 대사 순서
@@ -167,7 +184,7 @@ async function playthrough(browser, jobId, viewport, opts = {}) {
   // 2) 다시 시작 시 이전 선택값 초기화
   {
     const page = lastPage;
-    await page.click('.ns-restart');
+    await page.click('#btn-restart'); await page.waitForTimeout(350); await page.click('.cf-yes');
     await page.waitForTimeout(300);
     const s = await page.evaluate(() => ({
       job: WS.game.state.player.jobId, ab: WS.game.state.player.abilities.length, aw: WS.game.state.player.awakened,
@@ -396,7 +413,7 @@ B로 옴
     const page = await browser.newPage({ viewport: vp });
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
-    page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+    page.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') errors.push(m.text()); });
     await page.goto(URL + '#room');
     await page.evaluate(() => {
       window.__said = []; window.__portraits = [];
@@ -465,6 +482,16 @@ B로 옴
     await page.waitForTimeout(400);
     const pj3 = await pos();
     check(`${tag} 조이스틱 위로 → 위로 이동, 손을 떼면 멈춤`, pj2.y < pj.y && pj2.x === pj.x && pj3.y === pj2.y, JSON.stringify([pj, pj2, pj3]));
+    // 떠다니는 조이스틱: 왼쪽 영역의 다른 곳을 눌러도 그 자리에서 조작
+    const zone = await page.locator('.pad-zone').boundingBox();
+    const pf = await pos();
+    const fx = zone.x + zone.width * 0.6, fy = zone.y + zone.height * 0.45;
+    await page.mouse.move(fx, fy); await page.mouse.down();
+    await page.mouse.move(fx + 60, fy + 4, { steps: 3 });
+    await page.waitForTimeout(260); await page.mouse.up(); await page.waitForTimeout(400);
+    const pf2 = await pos();
+    check(`${tag} 떠다니는 조이스틱: 왼쪽 영역 아무 곳에서나 끌어 이동`, pf2.x > pf.x && pf2.y === pf.y, JSON.stringify([pf, pf2]));
+    await page.keyboard.down('ArrowLeft'); await page.waitForTimeout(150); await page.keyboard.up('ArrowLeft'); await page.waitForTimeout(400);
     // 아래쪽 화면(숨은 대화창 자리)이 터치를 막지 않는지
     const hit = await page.evaluate(() => { const el = document.elementFromPoint(innerWidth / 2, innerHeight - 30); return el && el.closest('.dlg') ? 'dlg' : el && el.id; });
     check(`${tag} 대화창이 숨어 있을 때 화면 아래쪽을 가로채지 않음`, hit !== 'dlg', hit);
@@ -543,9 +570,16 @@ B로 옴
     r = await talkMayer();
     await page.waitForTimeout(450);
     await page.click('.choices button:nth-child(1)');
-    const endShown = await advanceUntil(page, () => !!document.querySelector('.choices.end.show button:not([disabled])'), 200);
-    const brief = await page.evaluate(() => ({ said: window.__said.includes('“네. 그럼 다음으로…….”'), ev: WS.game.state.scenes.heroRoom.events.briefing }));
-    check(`${tag} 메이어: 다음 스크립트(원문) 진행 → 다음 단계 연결 지점 버튼`, endShown && brief.said && brief.ev, JSON.stringify(brief));
+    const endShown = await ff(page, () => !!document.querySelector('.choices.end.show button:not([disabled])'));
+    const brief = await page.evaluate(() => ({
+      said: window.__said.includes('“네. 그럼 다음으로…….”'),
+      doom: window.__said.includes('“예언에 따르면, 이 세계는 앞으로 30일 뒤에 멸망합니다.”'),
+      mireille: window.__said.includes('“미레유님께서 예언하신 내용입니다.”'),
+      last: window.__said.slice(-1)[0], ev: WS.game.state.scenes.heroRoom.events.briefing, flag: !!WS.game.state.flags.doom_revealed,
+      btn: document.querySelector('.choices.end button').textContent,
+    }));
+    check(`${tag} 메이어: 다음 스크립트 → 새 원고(멸망 고지 · 미레유 · 첫 임무)까지 진행 → "밖으로 나간다"`,
+      endShown && brief.said && brief.doom && brief.mireille && brief.ev && brief.flag && brief.btn === '밖으로 나간다' && brief.last === '다만, 이제는 끝이 정해진 세상이었다.', JSON.stringify(brief));
     await page.click('.choices.end button');
     await page.waitForTimeout(2000);
     const ph = await page.evaluate(() => ({ cur: WS.game.scenes.current, shown: document.querySelector('#next-scene').classList.contains('show'), back: !document.querySelector('.ns-back').hidden }));
@@ -592,6 +626,135 @@ B로 옴
     const st = await page.evaluate(() => ({ view: WS.game.stage.view, cur: WS.game.scenes.current }));
     await page.keyboard.press('ArrowLeft');
     check('[방] 장면을 나가면 맵 화면과 입력이 정리됨', st.view === null && st.cur === 'whiteSpace');
+    await page.close();
+  }
+
+  // 8) 방 장면을 직업별로 끝까지: 초상화 · 도트 · 표정 경고 · 알림 · @silence · 세이브/불러오기
+  for (const job of ['morganite', 'aquamarine', 'amethyst', 'ruby', 'heliodor']) {
+    const tag = `[방 · ${job}]`;
+    const page = await browser.newPage({ viewport: { width: 844, height: 390 } });
+    const issues = [];
+    page.on('pageerror', e => issues.push(e.message));
+    page.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') issues.push(m.text()); });
+    await page.goto(URL + '?scene=heroRoom&job=' + job);
+    await page.evaluate(() => {
+      window.__said = []; window.__portraits = []; window.__toasts = []; window.__closeups = [];
+      const d = WS.game.ui.dialogue, orig = d.say.bind(d);
+      d.say = (sp, text) => { window.__said.push(text); const r = orig(sp, text); window.__portraits.push([sp, d.el.portraitImg.getAttribute('src')]); return r; };
+      const t = WS.game.ui.toast.bind(WS.game.ui); WS.game.ui.toast = (m, e) => { window.__toasts.push(m); return t(m, e); };
+      const c = WS.game.ui.closeup.bind(WS.game.ui); WS.game.ui.closeup = id => { window.__closeups.push([id, window.__said.slice(-1)[0]]); return c(id); };
+    });
+    await page.click('#start-gate p');
+    await ff(page, () => WS.game.stage.view.mode === 'explore');
+    await page.evaluate(() => WS.game.stage.view.walkTo(6, 6, 'right'));
+    await page.waitForFunction(() => { const v = WS.game.stage.view; return v.player.x === 6 && v.player.y === 6 && !v.player.move && !v.pending; });
+    await page.evaluate(() => WS.game.stage.view.onActionKey());
+    await ff(page, () => WS.game.ui.dialogue.mode === 'choice');
+    await page.waitForTimeout(400);
+    await page.click('.choices button:nth-child(1)');
+    // 멸망 고지 순간: 클로즈업이 켜져 있고 메이어를 비추는지
+    const atDoom = await ff(page, () => window.__said.slice(-1)[0] === '“예언에 따르면, 이 세계는 앞으로 30일 뒤에 멸망합니다.”');
+    const doomState = await page.evaluate(() => ({ cu: document.querySelector('#closeup').classList.contains('show'), cam: WS.game.stage.view.camFocus }));
+    check(`${tag} 멸망 고지 대사에서 메이어 클로즈업 + 카메라`, atDoom && doomState.cu && doomState.cam === 'mayer', JSON.stringify(doomState));
+    // @silence (맵 장면): 대화창이 내려가고 다시 이어짐
+    await ff(page, () => WS.game.ui.dialogue.mode === 'idle' && !document.querySelector('.dlg').classList.contains('show'), 8000);
+    const silent = await page.evaluate(() => ({ cu: document.querySelector('#closeup').classList.contains('show'), cam: WS.game.stage.view.camFocus, mode: WS.game.stage.view.mode }));
+    check(`${tag} @silence: 맵 장면에서 대화창이 잠시 내려가고(클로즈업 해제 · 카메라 복귀) 진행 유지`, !silent.cu && silent.cam === 'player' && silent.mode === 'busy', JSON.stringify(silent));
+    const ended = await ff(page, () => !!document.querySelector('.choices.end.show button:not([disabled])'));
+    const r = await page.evaluate(() => {
+      const hero = window.__portraits.filter(([sp]) => sp && sp.startsWith('클레어')).map(p => p[1]);
+      return {
+        heroSet: [...new Set(hero)], spr: WS.game.stage.view.player.sprite,
+        toast: window.__toasts, flag: WS.game.state.flags.doom_revealed, ev: WS.game.state.scenes.heroRoom.events.briefing,
+        josa: window.__said.find(t => t.includes('가장 알고 싶어 하는')),
+        mireilleCam: window.__closeups.length,
+      };
+    });
+    const expectJobFace = job === 'heliodor' ? r.heroSet.every(p => p === 'assets/portraits/heliodor.jpg') : r.heroSet.every(p => p.startsWith('assets/portraits/' + job + '_'));
+    check(`${tag} 클레어 초상화 = 변신 후 표정 (${r.heroSet.length}종${job === 'heliodor' ? ', 시트 없음 → 직업 초상화' : ''}) · 도트 = ${job}`, ended && expectJobFace && r.spr === job, JSON.stringify(r.heroSet));
+    check(`${tag} 알림 "세계 멸망까지 — 남은 날 30일" + doom_revealed 플래그 + briefing 이벤트`, r.toast.includes('세계 멸망까지 — 남은 날 30일') && r.flag && r.ev, JSON.stringify(r.toast));
+    check(`${tag} 조사 {player.name:이/가}: 받침 없는 이름 → "클레어가"`, r.josa === '하지만 이번에도, 클레어가 가장 알고 싶어 하는 질문에는 답하지 않았다.', r.josa);
+    await page.click('.choices.end button');
+    await page.waitForTimeout(2000);
+    const ph = await page.evaluate(() => WS.game.scenes.current);
+    check(`${tag} @end "밖으로 나간다" → 다음 장면 자리 표시(heroRoom_next)`, ph === 'heroRoom_next', ph);
+    // 세이브 → 불러오기 (게임 상태를 JSON 으로 저장했다가 되살림)
+    const load = await page.evaluate(async () => {
+      const saved = JSON.stringify(WS.game.state);
+      WS.game.newGame({ scene: 'whiteSpace' });
+      await new Promise(r => setTimeout(r, 200));
+      WS.game.ui.resetAll(); WS.game.runner.stop();
+      const prev = WS.game.scenes.currentScene; if (prev && prev.exit) prev.exit(WS.game);
+      WS.game.state = JSON.parse(saved);
+      WS.game.scenes.current = null;
+      WS.game.scenes.start('heroRoom', {});
+      await new Promise(r => setTimeout(r, 1200));
+      return { flag: WS.game.state.flags.doom_revealed, ev: WS.game.state.scenes.heroRoom.events, mode: WS.game.stage.view.mode, pose: WS.game.stage.view.player.pose, pos: [WS.game.stage.view.player.x, WS.game.stage.view.player.y], saved: WS.game.state.position };
+    });
+    check(`${tag} 세이브(JSON) → 불러오기: doom_revealed · briefing 유지, 시작 이벤트 재생 안 함, 위치 복원`,
+      load.flag && load.ev.briefing && load.ev.opening && load.mode === 'explore' && load.pose === 'stand' && load.pos[0] === load.saved.x && load.pos[1] === load.saved.y, JSON.stringify(load));
+    check(`${tag} 콘솔 오류 · 경고(없는 표정 등) 없음`, issues.length === 0, issues.join(' | '));
+    if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `room-${job}-loaded.png`) });
+    await page.close();
+  }
+
+  // 9) 흰 공간에서 받침 있는 이름("하늘") → 방까지 이어서 조사 확인
+  {
+    const page = await browser.newPage({ viewport: { width: 844, height: 390 } });
+    const issues = [];
+    page.on('pageerror', e => issues.push(e.message));
+    page.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') issues.push(m.text()); });
+    await page.goto(URL);
+    await page.evaluate(() => { window.__said = []; const d = WS.game.ui.dialogue, o = d.say.bind(d); d.say = (sp, t) => { window.__said.push(t); return o(sp, t); }; });
+    await page.click('#start-gate p');
+    await ff(page, () => document.querySelector('#name-input').classList.contains('show'));
+    await fillName(page, '하늘');
+    await ff(page, () => WS.game.ui.jobSelect.isOpen);
+    await page.waitForTimeout(400);
+    await page.click('.job-item[data-job="amethyst"]');
+    await page.click('.js-accept'); await page.waitForTimeout(300); await page.click('.cf-yes');
+    await ff(page, () => !!document.querySelector('.choices.end.show button:not([disabled])'));
+    await page.click('.choices.end button');
+    await page.waitForTimeout(2200);
+    const inRoom = await page.evaluate(() => WS.game.scenes.current === 'heroRoom' && WS.game.stage.view.mode === 'cutscene');
+    check('[흰 공간 → 방] "다음 장면으로" 를 누르면 주인공의 방 시작 이벤트로 이어짐', inRoom);
+    await ff(page, () => WS.game.stage.view.mode === 'explore');
+    const greet = await page.evaluate(() => window.__said.find(t => t.startsWith('“반갑습니다')));
+    check('[흰 공간 → 방] 입력한 이름으로 부름: "반갑습니다, 하늘님."', greet === '“반갑습니다, 하늘님.”', greet);
+    await page.evaluate(() => WS.game.stage.view.walkTo(6, 6, 'right'));
+    await page.waitForFunction(() => { const v = WS.game.stage.view; return v.player.x === 6 && v.player.y === 6 && !v.player.move && !v.pending; });
+    await page.evaluate(() => WS.game.stage.view.onActionKey());
+    await ff(page, () => WS.game.ui.dialogue.mode === 'choice');
+    await page.waitForTimeout(400);
+    await page.click('.choices button:nth-child(1)');
+    await ff(page, () => window.__said.some(t => t.includes('가장 알고 싶어 하는')));
+    const josa = await page.evaluate(() => window.__said.find(t => t.includes('가장 알고 싶어 하는')));
+    check('[흰 공간 → 방] 받침 있는 이름 → "하늘이 가장 알고 싶어 하는"', josa === '하지만 이번에도, 하늘이 가장 알고 싶어 하는 질문에는 답하지 않았다.', josa);
+    const plate = await page.evaluate(async () => {
+      for (let i = 0; i < 400; i++) {
+        const n = document.querySelector('.dlg-name').textContent;
+        if (WS.game.ui.dialogue.el.box.dataset.speaker === 'hero' && WS.game.ui.dialogue.mode === 'waiting') return [n, WS.game.ui.dialogue.el.portraitImg.getAttribute('src')];
+        const d = WS.game.ui.dialogue; if (d.mode === 'typing') d.finishTyping(); else if (d.mode === 'waiting' && performance.now() - d.completedAt > 95) d.advance();
+        await new Promise(r => setTimeout(r, 25));
+      }
+      return null;
+    });
+    check('[흰 공간 → 방] 클레어 대사의 이름표 = 입력한 이름, 초상화 = 애머시스트 표정', plate && plate[0] === '하늘' && plate[1].startsWith('assets/portraits/amethyst_'), JSON.stringify(plate));
+    check('[흰 공간 → 방] 콘솔 오류 · 경고 없음', issues.length === 0, issues.join(' | '));
+    await page.close();
+  }
+
+  // 10) 알림 문구가 잘리지 않는지 (가로 폰 · 세로 폰 · 태블릿)
+  for (const vp of [{ width: 667, height: 375 }, { width: 390, height: 844 }, { width: 768, height: 1024 }]) {
+    const page = await browser.newPage({ viewport: vp });
+    await page.goto(URL);
+    const t = await page.evaluate(async () => {
+      WS.game.ui.toast('세계 멸망까지 — 남은 날 30일');
+      await new Promise(r => setTimeout(r, 500));
+      const el = document.getElementById('toast'), r = el.getBoundingClientRect();
+      return { inside: r.left >= 0 && r.right <= innerWidth && r.top >= 0, fits: el.scrollWidth <= el.clientWidth + 1, h: Math.round(r.height), rot: getComputedStyle(document.getElementById('rotate-hint')).display };
+    });
+    check(`[알림 ${vp.width}x${vp.height}] "세계 멸망까지 — 남은 날 30일" 잘리지 않음${t.rot === 'flex' ? ' (세로 폰은 가로 회전 안내가 먼저 뜸)' : ''}`, t.inside && t.fits, JSON.stringify(t));
     await page.close();
   }
 

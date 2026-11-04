@@ -261,8 +261,6 @@ def eyes(c, dk, md, lt, lash='#3a1a2c', style='round', which='both'):
             for j, col in enumerate(row):
                 if col:
                     s.pts([(ex + j, 22 + i)], col)
-        # 아래 속눈썹 점
-        s.pts([(ex + (w - 1 if side in ('L', 'S') else 0), 27)], mix(lash, '#e0a0a8', 0.5))
 
 
 def blush_mouth(c, mouth='smile'):

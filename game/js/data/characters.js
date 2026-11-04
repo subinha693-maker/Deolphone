@@ -22,6 +22,50 @@ WS.CHARACTERS = {
     portrait: 'assets/portraits/hero.jpg',
     // 표정을 지정하지 않으면: 각성 후에는 선택한 직업의 초상화(jobs.js 의 portrait)
     usesJobPortrait: true,
+    // 각성(변신) 후의 표정: 직업별 표정 그림. 없는 직업은 그 직업의 초상화(jobs.js portrait)를 쓴다
+    jobExpressions: {
+      morganite: {
+        기본: 'assets/portraits/morganite_calm.jpg',
+        놀람: 'assets/portraits/morganite_oh.jpg',
+        당황: 'assets/portraits/morganite_worried.jpg',
+        부끄: 'assets/portraits/morganite_blush.jpg',
+        흥분: 'assets/portraits/morganite_shout.jpg',
+        한숨: 'assets/portraits/morganite_closed.jpg',
+        못마땅: 'assets/portraits/morganite_teary.jpg',
+        시무룩: 'assets/portraits/morganite_teary.jpg',
+      },
+      aquamarine: {
+        기본: 'assets/portraits/aquamarine_calm.jpg',
+        놀람: 'assets/portraits/aquamarine_blush.jpg',
+        당황: 'assets/portraits/aquamarine_worried.jpg',
+        부끄: 'assets/portraits/aquamarine_blush.jpg',
+        흥분: 'assets/portraits/aquamarine_closed.jpg',
+        한숨: 'assets/portraits/aquamarine_sigh.jpg',
+        못마땅: 'assets/portraits/aquamarine_sulky.jpg',
+        시무룩: 'assets/portraits/aquamarine_sulky.jpg',
+      },
+      ruby: {
+        기본: 'assets/portraits/ruby_calm.jpg',
+        놀람: 'assets/portraits/ruby_oh.jpg',
+        당황: 'assets/portraits/ruby_oh.jpg',
+        부끄: 'assets/portraits/ruby_shy.jpg',
+        흥분: 'assets/portraits/ruby_shout.jpg',
+        한숨: 'assets/portraits/ruby_gloomy.jpg',
+        못마땅: 'assets/portraits/ruby_annoyed.jpg',
+        시무룩: 'assets/portraits/ruby_gloomy.jpg',
+      },
+      amethyst: {
+        기본: 'assets/portraits/amethyst_calm.jpg',
+        놀람: 'assets/portraits/amethyst_oh.jpg',
+        당황: 'assets/portraits/amethyst_worried.jpg',
+        부끄: 'assets/portraits/amethyst_blush.jpg',
+        흥분: 'assets/portraits/amethyst_shout.jpg',
+        한숨: 'assets/portraits/amethyst_closed.jpg',
+        못마땅: 'assets/portraits/amethyst_annoyed.jpg',
+        시무룩: 'assets/portraits/amethyst_sulky.jpg',
+      },
+      // heliodor: 표정 시트가 준비되면 추가 (그전에는 직업 초상화로 대체)
+    },
     expressions: {
       기본: 'assets/portraits/claire_normal.jpg',
       놀람: 'assets/portraits/claire_surprised.jpg',
