@@ -82,7 +82,7 @@
       const img = this.images['char_' + charId];
       const frames = MG.SPRITE_DATA[charId][anim];
       if (!img || !frames) return;
-      const f = frames[Math.min(index, frames.length - 1)];
+      const f = frames[Math.max(0, Math.min(index | 0, frames.length - 1))];
       const s = scale || 1;
       if (alpha != null) g.globalAlpha = alpha;
       g.drawImage(img, f.x, f.y, f.w, f.h, Math.round(x + f.ox * s), Math.round(y + f.oy * s), Math.round(f.w * s), Math.round(f.h * s));

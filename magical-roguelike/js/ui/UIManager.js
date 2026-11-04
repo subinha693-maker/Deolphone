@@ -70,7 +70,10 @@
     }
 
     bindStatic() {
-      $('btnStart').onclick = () => this.gm.newRun();
+      $('btnStart').onclick = () => {
+        if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches && MG.requestLandscape) MG.requestLandscape();
+        this.gm.newRun();
+      };
       $('btnRestart').onclick = () => this.gm.newRun();
       $('btnTitle').onclick = () => this.gm.toTitle();
       $('btnCloseDrawer').onclick = () => $('relicDrawer').classList.add('hidden');
@@ -122,9 +125,19 @@
       const t = $('tooltip');
       if (t.classList.contains('hidden')) return;
       const r = $('stage').getBoundingClientRect();
-      const s = r.width / 1280;
-      let x = (e.clientX - r.left) / s + 16;
-      let y = (e.clientY - r.top) / s + 16;
+      const v = MG.view || { rotate: false };
+      let x;
+      let y;
+      if (v.rotate) {
+        // stage rotated 90° clockwise: local x runs down the screen, local y runs right-to-left
+        const s = r.height / 1280;
+        x = (e.clientY - r.top) / s + 16;
+        y = (r.right - e.clientX) / s + 16;
+      } else {
+        const s = r.width / 1280;
+        x = (e.clientX - r.left) / s + 16;
+        y = (e.clientY - r.top) / s + 16;
+      }
       if (x + 310 > 1280) x -= 330;
       if (y + t.offsetHeight > 710) y = 710 - t.offsetHeight;
       t.style.left = x + 'px';
