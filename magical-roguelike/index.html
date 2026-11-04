@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>황혼의 마법소녀 원정대</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="viewport">
+    <div id="stage">
+      <canvas id="battleCanvas" width="1280" height="720"></canvas>
+
+      <!-- Title -->
+      <section id="screen-title" class="screen">
+        <canvas id="titleCanvas" width="1280" height="720"></canvas>
+        <div class="title-box">
+          <div class="title-sub">분기형 탐사 · 마법소녀 파티 로그라이크</div>
+          <h1>황혼의 마법소녀 원정대</h1>
+          <img class="divider-img" src="assets/ui/divider.png" alt="" />
+          <button class="choice-btn" id="btnStart"><span>탐사 시작</span></button>
+          <div class="title-help">
+            <b>조작</b> · 아군은 자동으로 공격합니다. 스킬 버튼 / <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> 로 스킬 사용,
+            대기 아군 카드를 누른 뒤 배치 칸을 눌러 교대, <kbd>⇄</kbd> 진형 변경, <kbd>↕</kbd> 진격로 이동, <kbd>Space</kbd> 일시정지
+          </div>
+        </div>
+      </section>
+
+      <!-- Exploration map -->
+      <section id="screen-map" class="screen">
+        <header class="topbar" id="mapTopbar"></header>
+        <div id="mapArea">
+          <svg id="mapLinks" width="1280" height="500"></svg>
+          <div id="mapNodes"></div>
+        </div>
+        <footer id="mapFooter">
+          <div id="mapParty"></div>
+          <div id="nodeDetail"></div>
+        </footer>
+      </section>
+
+      <!-- Battle HUD (canvas below) -->
+      <section id="screen-battle" class="screen">
+        <header class="topbar" id="battleTopbar"></header>
+        <div id="relicStrip"></div>
+        <div id="laneInfo"></div>
+        <div id="battleHud">
+          <div id="fieldPanel"></div>
+          <div id="benchPanel"></div>
+        </div>
+        <div id="pauseOverlay" class="hidden">일시정지 — Space 로 재개</div>
+      </section>
+
+      <!-- Reward / relic pick -->
+      <section id="screen-reward" class="screen">
+        <div class="reward-head">
+          <img class="divider-img" src="assets/ui/divider.png" alt="" />
+          <h2 id="rewardTitle">보상 선택</h2>
+          <div id="rewardSub"></div>
+        </div>
+        <div id="rewardCards"></div>
+      </section>
+
+      <!-- Event / Rest -->
+      <section id="screen-event" class="screen">
+        <canvas id="eventCanvas" width="1280" height="720"></canvas>
+        <div class="event-title-box">
+          <div class="event-kicker" id="eventKicker">사건</div>
+          <h2 id="eventTitle"></h2>
+          <div class="event-line"></div>
+        </div>
+        <div id="eventChoices"></div>
+        <div class="dialog">
+          <div class="dialog-name" id="eventSpeaker"></div>
+          <div class="dialog-text" id="eventText"></div>
+        </div>
+      </section>
+
+      <!-- Result -->
+      <section id="screen-result" class="screen">
+        <div class="result-box">
+          <h2 id="resultTitle"></h2>
+          <div id="resultSub"></div>
+          <div id="resultStats"></div>
+          <button class="choice-btn" id="btnRestart"><span>새 탐사 시작</span></button>
+          <button class="choice-btn dark" id="btnTitle"><span>타이틀로</span></button>
+        </div>
+      </section>
+
+      <!-- Relic drawer -->
+      <aside id="relicDrawer" class="hidden">
+        <div class="drawer-head">유물 &amp; 시너지 <button id="btnCloseDrawer">✕</button></div>
+        <div id="drawerBody"></div>
+      </aside>
+
+      <div id="tooltip" class="hidden"></div>
+      <div id="toast" class="hidden"></div>
+      <div id="loading">불러오는 중…</div>
+    </div>
+  </div>
+
+  <!-- data -->
+  <script src="js/core/util.js"></script>
+  <script src="js/core/StateMachine.js"></script>
+  <script src="js/data/config.js"></script>
+  <script src="js/data/spriteData.js"></script>
+  <script src="js/data/characters.js"></script>
+  <script src="js/data/enemies.js"></script>
+  <script src="js/data/relics.js"></script>
+  <script src="js/data/nodes.js"></script>
+  <script src="js/data/events.js"></script>
+  <!-- systems -->
+  <script src="js/systems/FormationSystem.js"></script>
+  <script src="js/systems/PartyManager.js"></script>
+  <script src="js/systems/CombatSystem.js"></script>
+  <script src="js/systems/LaneManager.js"></script>
+  <script src="js/systems/SkillSystem.js"></script>
+  <script src="js/systems/RelicSystem.js"></script>
+  <script src="js/systems/WaveManager.js"></script>
+  <script src="js/systems/MapManager.js"></script>
+  <script src="js/systems/ExplorationManager.js"></script>
+  <script src="js/systems/RewardSystem.js"></script>
+  <script src="js/systems/NodeManager.js"></script>
+  <script src="js/core/GameManager.js"></script>
+  <!-- view -->
+  <script src="js/ui/Assets.js"></script>
+  <script src="js/ui/BattleRenderer.js"></script>
+  <script src="js/ui/SceneArt.js"></script>
+  <script src="js/ui/UIManager.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
