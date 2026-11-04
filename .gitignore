@@ -7,3 +7,5 @@ local.properties
 captures/
 .cxx/
 .kotlin/
+game/shots/
+game/dist/

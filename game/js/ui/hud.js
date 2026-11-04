@@ -1,0 +1,272 @@
+/*
+ * 화면 공통 UI: 상단 버튼(상태 · 처음부터 · 전체화면), 상태창, 확인 창, 알림, 장면 전환 베일,
+ * 다음 장면 자리 표시 화면, 시작 화면
+ */
+window.WS = window.WS || {};
+
+WS.UI = class {
+  constructor(game) {
+    this.game = game;
+    this.modals = 0;
+    const $ = s => document.querySelector(s);
+    this.$ = $;
+    this.dialogue = new WS.Dialogue($('#dialogue-layer'), game);
+    this.jobSelect = new WS.JobSelect($('#job-select'), this);
+    this.hud = new WS.Hud(this);
+
+    this.toastEl = $('#toast');
+    this.veilEl = $('#veil');
+    this.confirmEl = $('#confirm');
+    this.statusEl = $('#status');
+    this.placeholderEl = $('#next-scene');
+
+    this.statusEl.querySelector('.st-close').addEventListener('click', e => { e.stopPropagation(); this.closeStatus(); });
+    this.placeholderEl.querySelector('.ns-restart').addEventListener('click', e => { e.stopPropagation(); game.newGame(); });
+  }
+
+  get modalOpen() { return this.modals > 0; }
+  pushModal() { this.modals++; }
+  popModal() { this.modals = Math.max(0, this.modals - 1); }
+
+  resetAll() {
+    this.modals = 0;
+    this.dialogue.reset();
+    this.jobSelect.close();
+    this.jobSelect.root.classList.remove('show');
+    this.confirmEl.classList.remove('show');
+    if (this.confirmResolve) { const r = this.confirmResolve; this.confirmResolve = null; r(false); }
+    this.statusEl.classList.remove('show');
+    this.hidePlaceholderScene();
+    this.closeup(null);
+    this.$('#name-input').classList.remove('show');
+    this.nameResolve = null;
+    this.toastEl.classList.remove('show');
+    this.veilEl.classList.remove('show');
+    this.modals = 0;
+    this.hud.refresh();
+  }
+
+  toast(msg, isError) {
+    const el = this.toastEl;
+    el.textContent = msg;
+    el.classList.toggle('error', !!isError);
+    el.classList.remove('show');
+    void el.offsetWidth;
+    el.classList.add('show');
+    clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
+  }
+
+  /** 확인 창 → true / false */
+  confirm({ title, body, yes = '확인', no = '취소', color }) {
+    const el = this.confirmEl;
+    el.querySelector('.cf-title').textContent = title;
+    el.querySelector('.cf-body').innerHTML = body;
+    const yesBtn = el.querySelector('.cf-yes');
+    const noBtn = el.querySelector('.cf-no');
+    yesBtn.textContent = yes;
+    noBtn.textContent = no;
+    if (color) el.style.setProperty('--job', color); else el.style.removeProperty('--job');
+    el.classList.add('show');
+    this.pushModal();
+    yesBtn.disabled = noBtn.disabled = true;
+    setTimeout(() => { yesBtn.disabled = noBtn.disabled = false; }, 250);
+    return new Promise(resolve => {
+      this.confirmResolve = resolve;
+      const done = v => e => {
+        e.stopPropagation();
+        if (this.confirmResolve !== resolve) return;
+        this.confirmResolve = null;
+        yesBtn.onclick = noBtn.onclick = null;
+        el.classList.remove('show');
+        this.popModal();
+        resolve(v);
+      };
+      yesBtn.onclick = done(true);
+      noBtn.onclick = done(false);
+    });
+  }
+
+  openStatus() {
+    const run = this.game.state;
+    const job = WS.getJob(run.player.jobId);
+    if (!job) return;
+    const body = this.statusEl.querySelector('.st-body');
+    const s = run.player.stats;
+    body.style.setProperty('--job', job.color);
+    body.innerHTML = `
+      <div class="st-portrait"><img src="${run.player.awakened ? job.portrait : WS.CHARACTERS.hero.portrait}" alt=""></div>
+      <div class="st-info">
+        <h3>${run.player.name || WS.DEFAULT_PLAYER_NAME}</h3>
+        <p class="st-job">${job.name} <small>${job.role}</small></p>
+        <p class="st-state">${run.player.awakened ? '각성 완료' : '각성 전'}</p>
+        <div class="st-stats">${Object.keys(WS.STAT_LABELS).map(k => `<span>${WS.STAT_LABELS[k]} <b>${s[k]}</b></span>`).join('')}</div>
+        <h4>능력</h4>
+        ${run.player.abilities.length
+          ? run.player.abilities.map(a => `<div class="st-ability"><b>「${a.name}」</b> Lv.${a.level}<p>${a.desc}</p><small>마나 ${a.cost} · 대기 ${a.cooldown}턴</small></div>`).join('')
+          : '<p class="muted">아직 깨어난 능력이 없습니다.</p>'}
+        <h4>소지품</h4>
+        ${Object.keys(run.inventory).length
+          ? Object.keys(run.inventory).map(id => `<div class="st-ability"><b>${WS.ITEMS[id].name}</b> ×${run.inventory[id]}<p>${WS.ITEMS[id].desc}</p></div>`).join('')
+          : '<p class="muted">아무것도 가지고 있지 않습니다.</p>'}
+      </div>`;
+    this.statusEl.classList.add('show');
+    this.pushModal();
+  }
+
+  closeStatus() {
+    if (!this.statusEl.classList.contains('show')) return;
+    this.statusEl.classList.remove('show');
+    this.popModal();
+  }
+
+  /** 장면 전환용 흰 베일 */
+  veil(on, ms) {
+    const el = this.veilEl;
+    el.style.transitionDuration = ms + 'ms';
+    el.classList.toggle('show', on);
+    return WS.sleep(ms);
+  }
+
+  showPlaceholderScene(run, payload) {
+    const job = WS.getJob(run.player.jobId);
+    const el = this.placeholderEl;
+    const inv = Object.keys(run.inventory || {}).map(id => (WS.ITEMS[id] ? WS.ITEMS[id].name : id) + ' ×' + run.inventory[id]);
+    el.querySelector('.ns-title').textContent = payload.missing ? `「${payload.missing}」` : '다음 장면';
+    el.querySelector('.ns-summary').innerHTML = `
+      <li>직업: <b>${job ? job.name : '없음'}</b></li>
+      <li>능력: <b>${run.player.abilities.map(a => a.name).join(', ') || '없음'}</b></li>
+      <li>소지품: <b>${inv.join(', ') || '없음'}</b></li>
+      <li>회차: <b>${run.loop}</b> · 플래그: <b>${Object.keys(run.flags).join(', ') || '없음'}</b></li>
+      <li>이전 장면: <b>${payload.from || '-'}</b></li>`;
+    // 이전 장면으로 돌아가기 (게임 상태는 그대로 유지)
+    const back = el.querySelector('.ns-back');
+    back.hidden = !(payload.missing && payload.from);
+    back.onclick = e => { e.stopPropagation(); this.game.scenes.goTo(payload.from, { returning: true }); };
+    el.classList.add('show');
+    this.pushModal();
+  }
+
+  /**
+   * 이름 입력 → 정한 이름으로 resolve
+   * 규칙: 앞뒤 공백 제외 1~8글자, 기호 { } < > [ ] | 는 쓸 수 없음
+   */
+  askName(question) {
+    const el = this.$('#name-input');
+    const form = el.querySelector('form');
+    const field = el.querySelector('#ni-field');
+    const err = el.querySelector('.ni-err');
+    el.querySelector('.ni-q').textContent = question || '당신의 이름을 알려 주세요.';
+    field.value = '';
+    err.textContent = '';
+    el.classList.add('show');
+    this.pushModal();
+    setTimeout(() => field.focus(), 350);
+    return new Promise(resolve => {
+      this.nameResolve = resolve;
+      form.onclick = e => e.stopPropagation();
+      form.onsubmit = async e => {
+        e.preventDefault();
+        const name = WS.validateName(field.value);
+        if (name.error) { err.textContent = name.error; field.focus(); return; }
+        field.blur();
+        const ok = await this.confirm({
+          title: name.value,
+          body: `「${name.value}」(으)로 하시겠어요?`,
+          yes: '좋아요', no: '다시 쓸래요',
+        });
+        if (!ok || this.nameResolve !== resolve) { if (this.nameResolve === resolve) field.focus(); return; }
+        this.nameResolve = null;
+        el.classList.remove('show');
+        this.popModal();
+        resolve(name.value);
+      };
+    });
+  }
+
+  /** 큰 그림 클로즈업 (charId 또는 null 로 닫기) */
+  closeup(charId) {
+    const el = this.$('#closeup');
+    const ch = charId && WS.CHARACTERS[charId];
+    if (!ch || !ch.closeup) { el.classList.remove('show'); return; }
+    el.querySelector('img').src = ch.closeup;
+    el.classList.add('show');
+  }
+
+  hidePlaceholderScene() {
+    if (!this.placeholderEl.classList.contains('show')) return;
+    this.placeholderEl.classList.remove('show');
+    this.popModal();
+  }
+};
+
+WS.Hud = class {
+  constructor(ui) {
+    this.ui = ui;
+    const $ = ui.$;
+    this.statusBtn = $('#btn-status');
+    this.restartBtn = $('#btn-restart');
+    this.fsBtn = $('#btn-fullscreen');
+    this.statusBtn.addEventListener('click', e => { e.stopPropagation(); if (!ui.modalOpen) ui.openStatus(); });
+    this.restartBtn.addEventListener('click', async e => {
+      e.stopPropagation();
+      if (ui.confirmResolve) return; // 이미 확인 창이 열려 있음
+      const ok = await ui.confirm({ title: '처음부터', body: '흰 공간의 처음으로 돌아갑니다.<br><small>이번 플레이의 선택은 모두 사라집니다.</small>', yes: '처음부터', no: '취소' });
+      if (ok) ui.game.newGame();
+    });
+    const canFs = document.fullscreenEnabled || document.webkitFullscreenEnabled;
+    this.fsBtn.hidden = !canFs;
+    this.fsBtn.addEventListener('click', e => { e.stopPropagation(); WS.toggleFullscreen(); });
+  }
+
+  refresh() {
+    const p = this.ui.game.state && this.ui.game.state.player;
+    const has = !!(p && p.jobId);
+    this.statusBtn.disabled = !has;
+    this.statusBtn.classList.toggle('glow', !!(p && p.awakened));
+  }
+};
+
+WS.toggleFullscreen = async function (forceOn) {
+  const d = document, el = d.documentElement;
+  const isFs = d.fullscreenElement || d.webkitFullscreenElement;
+  try {
+    if (isFs && !forceOn) {
+      await (d.exitFullscreen || d.webkitExitFullscreen).call(d);
+    } else if (!isFs) {
+      await (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+      if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape').catch(() => {});
+    }
+  } catch (e) { /* 지원하지 않는 환경 */ }
+};
+
+/** 이름 검사 → { value } 또는 { error } */
+WS.validateName = function (raw) {
+  const v = String(raw || '').trim().replace(/\s+/g, ' ');
+  if (!v) return { error: '이름을 입력해 주세요.' };
+  if ([...v].length > 8) return { error: '8글자까지 쓸 수 있어요.' };
+  if (/[{}<>\[\]|]/.test(v)) return { error: '쓸 수 없는 기호가 있어요.' };
+  return { value: v };
+};
+
+/**
+ * 받침에 맞는 조사 붙이기:  WS.josa('클레어', '이/가') → '클레어가'
+ * 쓸 수 있는 쌍: 이/가, 을/를, 은/는, 과/와, 아/야, 이에요/예요, 으로/로, 이/(없음)
+ */
+WS.josa = function (word, pair) {
+  const [withB, withoutB = ''] = pair.split('/');
+  const last = word.charCodeAt(word.length - 1);
+  let batchim = false, rieul = false;
+  if (last >= 0xac00 && last <= 0xd7a3) {
+    const jong = (last - 0xac00) % 28;
+    batchim = jong !== 0;
+    rieul = jong === 8;
+  } else if (/[0-9]$/.test(word)) {
+    batchim = /[013678]$/.test(word);
+    rieul = /[178]$/.test(word);
+  } else {
+    batchim = /[bcdgklmnprt]$/i.test(word);
+  }
+  if (withB === '으로' && rieul) return word + withoutB;   // ㄹ 받침 + 로
+  return word + (batchim ? withB : withoutB);
+};
