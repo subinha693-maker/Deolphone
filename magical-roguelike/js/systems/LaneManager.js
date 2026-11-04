@@ -6,11 +6,21 @@
   const LaneManager = {
     LANE_NAMES: ['상단 진격로', '하단 진격로'],
 
+    /** Enemy HP after difficulty, ascension and scouting (shared with wave previews). */
+    scaledHp(d, difficulty, run, scout) {
+      const sc = MG.DIFFICULTY_SCALING;
+      const asc = (run && run.asc) || 0;
+      let hp = d.hp * (1 + sc.hpPerLevel * (difficulty - 1)) * (1 - (scout || 0));
+      if (asc >= 1) hp *= 1.1;
+      if (asc >= 5 && d.boss) hp *= 1.25;
+      return Math.round(hp);
+    },
+
     spawnEnemy(battle, enemyId, lane) {
       const d = MG.ENEMIES[enemyId];
       const lvl = battle.node.difficulty - 1;
       const sc = MG.DIFFICULTY_SCALING;
-      const hp = Math.round(d.hp * (1 + sc.hpPerLevel * lvl) * (1 - (battle.scout || 0)));
+      const hp = this.scaledHp(d, battle.node.difficulty, battle.run, battle.scout);
       const art = MG.ENEMY_ART[enemyId];
       const e = {
         uid: MG.uid('e'),
@@ -41,10 +51,13 @@
         markUntil: 0,
         markAmp: 0,
         summonT: 0,
+        summonEvery: d.summon ? d.summon.every * ((battle.run.asc || 0) >= 5 ? 0.75 : 1) : 0,
+        summonWarned: false,
         wave: battle.waveIndex,
         state: 'walk',
       };
       battle.enemies.push(e);
+      if (MG.Meta) MG.Meta.discover(battle.run, 'enemies', enemyId);
       return e;
     },
 
@@ -63,6 +76,7 @@
           e.state = 'stun';
           continue;
         }
+        e.frozen = false;
         const slow = e.slowUntil > battle.time ? 1 - e.slowPct : 1;
         const target = this.laneTarget(battle, e.lane);
         let stopX;
@@ -99,8 +113,14 @@
         // boss summons
         if (e.data.summon) {
           e.summonT += dt;
-          if (e.summonT >= e.data.summon.every) {
+          if (!e.summonWarned && e.summonT >= e.summonEvery - 1) {
+            e.summonWarned = true;
+            for (const l of [0, 1]) battle.warnings.push({ lane: l, until: battle.time + 1, text: '권속 소환 임박' });
+            battle.bus.emit('spawnWarning', { lane: e.lane, enemy: e.data.summon.enemy, summon: true });
+          }
+          if (e.summonT >= e.summonEvery) {
             e.summonT = 0;
+            e.summonWarned = false;
             for (let i = 0; i < e.data.summon.count; i++) this.spawnEnemy(battle, e.data.summon.enemy, i % 2);
             battle.float(e.x, e.y - e.h - 20, '권속 소환!', '#e0384f', 1.2);
           }

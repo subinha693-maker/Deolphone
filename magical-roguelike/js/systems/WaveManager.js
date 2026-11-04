@@ -2,6 +2,8 @@
 //   advance (run) -> combat (spawn + auto battle) -> waveClear -> advance ... -> nodeClear
 //   any of advance/combat -> defeat
 // Phases are a StateMachine, so a wave cannot be cleared twice or a reward shown mid-fight.
+// Wave plans are generated per node from a sub-RNG (seed ^ hash(node id)), so previewing a
+// node on the map never consumes run.rng and the preview always matches the real battle.
 (function () {
   const MG = (window.MG = window.MG || {});
 
@@ -10,6 +12,7 @@
   const NODE_CLEAR_TIME = 1.8;
   const DEFEAT_TIME = 2.0;
   const SCROLL_SPEED = 260;
+  const WARN_LEAD = 2.0; // seconds of warning before an elite/boss spawns
 
   const PHASES = {
     advance: ['combat', 'defeat'],
@@ -19,6 +22,15 @@
     defeat: ['done'],
     done: [],
   };
+
+  function hashStr(s) {
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
 
   /** Runtime context of one battle node. */
   class Battle {
@@ -41,18 +53,21 @@
       this.vfx = [];
       this.floats = [];
       this.timers = [];
+      this.warnings = [];
       this.swapCd = 0;
       this.formCd = [0, 0];
       this.tagWindow = [];
       this.globalBuffs = [];
+      this.tempBonus = {};
       this.hasteUnitId = null;
+      this.phoenixUsed = false;
       this.procs = {};
       this.procFloatT = {};
       this.depth = 0;
       this.scroll = 0;
       this.banner = null;
       this.result = null;
-      this.stats = { kills: 0, leaks: 0, damage: 0, skills: 0 };
+      this.stats = { kills: 0, elites: 0, leaks: 0, damage: 0, skills: 0 };
     }
     get phase() {
       return this.sm.state;
@@ -80,7 +95,7 @@
       }
     }
     pendingSpawns(lane) {
-      if (!this.wave) return 0;
+      if (!this.wave || this.phase !== 'combat') return this.wave && this.phase === 'advance' ? this.wave.spawns.filter((s) => s.lane === lane).length : 0;
       return this.wave.spawns.slice(this.spawnIdx).filter((s) => s.lane === lane).length;
     }
     setPhase(p) {
@@ -96,9 +111,11 @@
   const WaveManager = {
     Battle,
     ADVANCE_TIME,
+    hashStr,
 
     /** Expand wave templates into concrete, time-ordered spawn lists. */
-    buildWaves(node, rng) {
+    buildWaves(node, rng, run) {
+      const asc = (run && run.asc) || 0;
       let templates;
       if (node.type === 'final') templates = MG.FINAL_WAVES.slice();
       else {
@@ -108,7 +125,6 @@
         const pool = MG.WAVE_TEMPLATES.filter((t) => t.tier <= maxTier);
         templates = [];
         for (let i = 0; i < n; i++) {
-          // later waves prefer higher tiers
           const tierPool = pool.filter((t) => t.tier >= Math.min(maxTier, 1 + Math.floor(i / 2)));
           templates.push(rng.pick(tierPool.length ? tierPool : pool));
         }
@@ -117,7 +133,9 @@
       return templates.map((tpl, index) => {
         const spawns = [];
         for (const en of tpl.entries) {
-          for (let i = 0; i < en.count; i++) {
+          const isEliteEntry = MG.ENEMIES[en.enemy].elite && node.type === 'elite';
+          const count = en.count + (asc >= 2 && isEliteEntry ? 1 : 0);
+          for (let i = 0; i < count; i++) {
             let lane = en.lane;
             if (lane === 'both') lane = i % 2;
             else if (lane === 'rand') lane = rng.int(0, 1);
@@ -135,17 +153,46 @@
       });
     },
 
+    /** Deterministic plan for a node (cached). Never touches run.rng. */
+    planFor(run, node) {
+      if (!node.plan) node.plan = this.buildWaves(node, MG.RNG((run.seed ^ hashStr(node.id)) >>> 0), run);
+      return node.plan;
+    },
+
+    /** Summary of one wave: [{lane, enemyId, count, totalHp, flags}] (pure). */
+    summarize(wave, difficulty, run) {
+      if (!wave) return [];
+      const map = {};
+      for (const s of wave.spawns) {
+        const k = s.lane + ':' + s.enemy;
+        const d = MG.ENEMIES[s.enemy];
+        if (!map[k]) map[k] = { lane: s.lane, enemyId: s.enemy, count: 0, totalHp: 0, flags: { flying: !!d.flying, ranged: !!d.ranged, elite: !!d.elite, boss: !!d.boss } };
+        map[k].count++;
+        map[k].totalHp += MG.LaneManager.scaledHp(d, difficulty, run, 0);
+      }
+      return Object.values(map).sort((a, b) => a.lane - b.lane || b.totalHp - a.totalHp);
+    },
+
+    /** offset 0 = current wave, 1 = next wave. */
+    preview(battle, offset) {
+      return this.summarize(battle.waves[battle.waveIndex + (offset || 0)], battle.node.difficulty, battle.run);
+    },
+
     createBattle(run, node) {
-      const waves = this.buildWaves(node, run.rng);
+      const waves = this.planFor(run, node).map((w) => Object.assign({}, w, { spawns: w.spawns.map((s) => Object.assign({}, s)) }));
       const battle = new Battle(run, node, waves);
+      // "next n battles" bonuses from events
+      for (const nb of run.nextBattles || []) battle.tempBonus[nb.stat] = (battle.tempBonus[nb.stat] || 0) + nb.pct;
+      run.nextBattles = (run.nextBattles || []).map((nb) => Object.assign({}, nb, { n: nb.n - 1 })).filter((nb) => nb.n > 0);
+      const remain = MG.RelicSystem.openingRemain(run);
       for (const u of run.party.all()) {
-        u.skillCd = u.def.skill.cooldown * 0.4;
+        u.skillCd = MG.SkillSystem.effective(u).cooldown * remain;
         u.b = null;
       }
       for (const u of run.party.all()) MG.CombatSystem.resetUnitBattleState(u, battle, false);
       MG.RelicSystem.attach(battle);
       battle.bus.on('swapIn', ({ unit, lane }) => MG.SkillSystem.onSwapIn(battle, unit, lane));
-      run.scout = 0; // scouting bonus is consumed by this battle
+      run.scout = 0; // scouting / ambush modifier is consumed by this battle
       battle.banner = { text: `WAVE 1 / ${waves.length}`, sub: '전진!', t: 0 };
       battle.emitRelic('battleStart', {});
       return battle;
@@ -166,7 +213,6 @@
       battle.formCd = battle.formCd.map((c) => Math.max(0, c - dt));
       if (battle.banner) battle.banner.t += dt;
 
-      // scheduled skill effects
       const due = battle.timers.filter((t) => t.at <= battle.time);
       battle.timers = battle.timers.filter((t) => t.at > battle.time);
       for (const t of due) t.fn();
@@ -182,6 +228,17 @@
           battle.waveTime += dt;
           const wave = battle.wave;
           const t = battle.waveTime - wave.startCondition.delay;
+          // elite / boss spawn warnings
+          for (let i = battle.spawnIdx; i < wave.spawns.length; i++) {
+            const s = wave.spawns[i];
+            if (s.warned || s.t - t > WARN_LEAD) continue;
+            const d = MG.ENEMIES[s.enemy];
+            if (d.elite || d.boss) {
+              s.warned = true;
+              battle.warnings.push({ lane: s.lane, until: battle.time + Math.max(0.6, s.t - t), text: d.boss ? '보스 출현' : '강적 출현' });
+              battle.bus.emit('spawnWarning', { lane: s.lane, enemy: s.enemy });
+            }
+          }
           while (battle.spawnIdx < wave.spawns.length && wave.spawns[battle.spawnIdx].t <= t) {
             const s = wave.spawns[battle.spawnIdx++];
             MG.LaneManager.spawnEnemy(battle, s.enemy, s.lane);
@@ -224,13 +281,11 @@
       MG.CombatSystem.updateProjectiles(battle, dt);
       MG.CombatSystem.updateEnemyDeaths(battle, dt);
 
-      // defeat check — never after the node has been cleared
       if ((battle.phase === 'advance' || battle.phase === 'combat' || battle.phase === 'waveClear') && (battle.run.life <= 0 || battle.party.allDown())) {
         battle.setPhase('defeat');
         battle.banner = { text: 'DEFEAT', sub: battle.run.life <= 0 ? '공유 생명이 모두 소진되었습니다' : '모든 아군이 쓰러졌습니다', t: 0 };
       }
 
-      // visual bookkeeping
       for (const f of battle.floats) {
         f.t += dt;
         f.y -= 38 * dt;
@@ -238,6 +293,7 @@
       battle.floats = battle.floats.filter((f) => f.t < f.dur);
       for (const v of battle.vfx) v.t += dt;
       battle.vfx = battle.vfx.filter((v) => v.t < v.dur);
+      battle.warnings = battle.warnings.filter((w) => w.until > battle.time);
     },
   };
 

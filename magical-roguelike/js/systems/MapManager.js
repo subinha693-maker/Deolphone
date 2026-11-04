@@ -3,7 +3,9 @@
   const MG = (window.MG = window.MG || {});
 
   const MapManager = {
-    generate(rng) {
+    /** opts.recruit: whether recruit nodes may be placed (candidates exist). */
+    generate(rng, opts) {
+      const o = opts || {};
       const cfg = MG.MAP_CONFIG;
       const nodes = {};
       const columns = [];
@@ -43,6 +45,43 @@
         if (c === columns.length - 2 && !col.some((nid) => nodes[nid].type === 'rest')) nodes[rng.pick(col)].type = 'rest';
         // avoid an all-non-battle column early on (needs relic sources from fights)
         if (c > 0 && c < columns.length - 2 && !col.some((nid) => MG.NODE_TYPES[nodes[nid].type].battle)) nodes[col[0]].type = 'battle';
+      }
+
+      // shop: at least one, in columns 3~5, keeping a battle in that column
+      const isBattle = (id) => MG.NODE_TYPES[nodes[id].type].battle;
+      if (!Object.values(nodes).some((n) => n.type === 'shop')) {
+        const [a, b] = cfg.forcedShopCols;
+        const cands = [];
+        for (let c = a; c <= b; c++) {
+          for (const id of columns[c]) {
+            const othersHaveBattle = columns[c].some((o) => o !== id && isBattle(o));
+            if (nodes[id].type !== 'rest' || columns[c].filter((x) => nodes[x].type === 'rest').length > 1) if (othersHaveBattle || !isBattle(id)) cands.push(id);
+          }
+        }
+        if (cands.length) nodes[rng.pick(cands)].type = 'shop';
+      }
+      // recruit: one guaranteed in columns 1~3, optional extra in 4~5
+      if (o.recruit) {
+        const [a, b] = cfg.recruitCols;
+        const pickIn = (from, to) => {
+          const cands = [];
+          for (let c = from; c <= to; c++) {
+            for (const id of columns[c]) {
+              const n = nodes[id];
+              if (c === 0 && n.row === 0) continue; // keep the first start node a battle
+              if (n.type === 'shop' || n.type === 'rest') continue;
+              if (isBattle(id) && !columns[c].some((x) => x !== id && isBattle(x)) && c > 0) continue;
+              cands.push(id);
+            }
+          }
+          return cands.length ? rng.pick(cands) : null;
+        };
+        const first = pickIn(a, b);
+        if (first) nodes[first].type = 'recruit';
+        if (rng.chance(cfg.extraRecruitChance)) {
+          const second = pickIn(cfg.extraRecruitCols[0], cfg.extraRecruitCols[1]);
+          if (second) nodes[second].type = 'recruit';
+        }
       }
 
       // difficulty + defense flag
@@ -122,6 +161,10 @@
           return '회복 · 부활';
         case 'final':
           return '탐사 구역 완료';
+        case 'shop':
+          return '유물 · 개조 · 물약 구매';
+        case 'recruit':
+          return '동료 후보 중 1명 영입';
         default:
           return '';
       }

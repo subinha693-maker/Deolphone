@@ -7,10 +7,12 @@
     startingPotions: 2,
     potionHealPct: 0.4,
     regionName: '황혼의 대성당 구역',
+    startPartySize: 4, // field 3 + bench 1
   };
 
-  // What survives a failed run. The prototype has no meta progression, so everything resets.
-  // Flip an entry to 'keep' once a persistent system exists for it (handled in GameManager.newRun).
+  // What survives a failed run *inside the run state*. Everything run-local resets.
+  // Permanent progression (월광, 성소 업그레이드, 해금, 도감) is kept separately by MG.Meta / MG.Save,
+  // so it is intentionally not listed here.
   MG.FAILURE_POLICY = {
     relics: 'reset',
     party: 'reset',

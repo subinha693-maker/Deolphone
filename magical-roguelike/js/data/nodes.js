@@ -10,7 +10,8 @@
     relic: { id: 'relic', name: '유물', icon: '✦', implemented: true, color: '#f2c14e' },
     event: { id: 'event', name: '사건', icon: '?', implemented: true, color: '#8fc8ff' },
     rest: { id: 'rest', name: '휴식', icon: '☾', implemented: true, color: '#9fe0a4' },
-    shop: { id: 'shop', name: '상점', icon: '◈', implemented: false, color: '#888' },
+    shop: { id: 'shop', name: '상점', icon: '◈', implemented: true, color: '#ffb36b' },
+    recruit: { id: 'recruit', name: '동료', icon: '♡', implemented: true, color: '#ff9fd6' },
     final: { id: 'final', name: '최종 전투', icon: '♛', implemented: true, color: '#ff4f7a', battle: true },
   };
 
@@ -25,17 +26,33 @@
       { v: 'relic', w: 14, minCol: 1 },
       { v: 'event', w: 20 },
       { v: 'rest', w: 14, minCol: 2 },
+      { v: 'shop', w: 10, minCol: 2 },
     ],
+    recruitCols: [0, 2], // a recruit node is guaranteed in columns 1~3 (index 0..2)
+    extraRecruitCols: [3, 4],
+    extraRecruitChance: 0.35,
+    forcedShopCols: [2, 4], // columns 3~5
     defenseChance: 0.35, // share of normal battles that use home-point defense rules
     startingLife: 10,
   };
 
   // Rewards per node type. relicPool: rarity weights for relic choices.
   MG.NODE_REWARDS = {
-    battle: { shards: [8, 14], relicChoices: 3, rarity: { common: 80, rare: 20 } },
-    elite: { shards: [18, 26], relicChoices: 3, rarity: { common: 25, rare: 75 } },
+    battle: { shards: [8, 14], relicChoices: 3, mods: 1, alt: 1, rarity: { common: 66, rare: 22, epic: 2, curse: 10 } },
+    elite: { shards: [18, 26], relicChoices: 3, mods: 2, alt: 0, rarity: { common: 15, rare: 55, epic: 18, curse: 12 } },
     final: { shards: [0, 0], relicChoices: 0 },
-    relic: { relicChoices: 3, rarity: { common: 55, rare: 45 } },
+    relic: { relicChoices: 3, rarity: { common: 45, rare: 35, epic: 8, curse: 12 } },
+  };
+
+  // Shop stock and prices (별조각)
+  MG.SHOP_CONFIG = {
+    relics: 3,
+    mods: 2,
+    rarity: { common: 50, rare: 32, epic: 8, curse: 10 },
+    price: { common: [14, 18], rare: [26, 32], epic: [44, 52], curse: [9, 13], mod: [22, 28], potion: 8, elixir: 12 },
+    rerollBase: 8,
+    rerollStep: 4,
+    elixirPct: 0.25,
   };
 
   // Wave templates. lane: 0 = upper, 1 = lower, 'both' = one of each per count, 'rand'

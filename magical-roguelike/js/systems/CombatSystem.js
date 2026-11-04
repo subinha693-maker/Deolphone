@@ -21,6 +21,7 @@
 
   const CombatSystem = {
     ANIM,
+    BACK_MELEE_PENALTY,
 
     resetUnitBattleState(u, battle, benched) {
       const keep = u.b || {};
@@ -31,6 +32,7 @@
         shield: 0,
         shieldUntil: 0,
         buffs: [],
+        regen: null,
         hurtFlash: 0,
         koT: 0,
         x: keep.x != null && !benched ? keep.x : MG.FormationSystem.G.BACK_X - 120,
@@ -41,17 +43,29 @@
         const { lane, slot } = MG.FormationSystem.parseKey(key);
         const p = MG.FormationSystem.position(lane, slot);
         if (!benched) {
-          u.b.x = p.x - 90; // slide in from behind
+          u.b.x = p.x - 90;
           u.b.y = p.y;
         }
       }
+    },
+
+    /** Run-wide bonuses: meta upgrades, event bonuses, "next n battles" bonuses. */
+    runPct(run, stat, battle) {
+      let pct = 0;
+      if (run.meta && run.meta[stat]) pct += run.meta[stat];
+      if (run.bonus && run.bonus[stat]) pct += run.bonus[stat];
+      if (battle && battle.tempBonus && battle.tempBonus[stat]) pct += battle.tempBonus[stat];
+      return pct;
     },
 
     stat(u, stat, battle) {
       const base = u.def.stats;
       let pct = 0;
       for (const b of u.b ? u.b.buffs : []) if (b.stat === stat) pct += b.pct;
-      pct += MG.RelicSystem.statPct(u, stat, battle);
+      if (battle) {
+        pct += MG.RelicSystem.statPct(u, stat, battle);
+        if (stat === 'atk' || stat === 'def') pct += this.runPct(battle.run, stat, battle);
+      }
       if (stat === 'atk') return base.atk * (1 + pct);
       if (stat === 'def') return base.def * (1 + pct);
       if (stat === 'atkSpeed') return 1 + pct;
@@ -63,18 +77,23 @@
       u.b.buffs.push({ id: buff.id, stat: buff.stat, pct: buff.pct, until: battle.time + buff.dur });
     },
 
-    addShield(u, amount, dur, battle) {
+    addShield(u, amount, dur, battle, silent) {
       u.b.shield = Math.max(u.b.shield, amount);
       u.b.shieldUntil = Math.max(u.b.shieldUntil, battle.time + dur);
-      battle.float(u.b.x, u.b.y - 115, `보호막 ${Math.round(amount)}`, '#9fd8ff');
+      if (!silent) battle.float(u.b.x, u.b.y - 115, `보호막 ${Math.round(amount)}`, '#9fd8ff');
     },
 
+    /** Heal with relic multipliers; overflow can become a shield. Returns HP actually restored. */
     heal(u, amount, battle) {
       if (u.hp <= 0) return 0;
+      const amt = amount * MG.RelicSystem.healMult(battle.run);
       const before = u.hp;
-      u.hp = Math.min(u.maxHp, u.hp + amount);
+      u.hp = Math.min(u.maxHp, u.hp + amt);
       const got = u.hp - before;
       if (got > 0.5 && u.b) battle.float(u.b.x, u.b.y - 100, '+' + Math.round(got), '#8ff0a0');
+      const over = amt - got;
+      if (over > 1 && u.b) MG.RelicSystem.onOverflow(battle, u, over);
+      battle.bus.emit('heal', { unit: u, amount: got });
       return got;
     },
 
@@ -94,7 +113,7 @@
     dealToEnemy(battle, src, e, raw, opts) {
       if (e.dead) return 0;
       const o = opts || {};
-      const amp = e.markUntil > battle.time ? 1 + e.markAmp : 1;
+      const amp = (e.markUntil > battle.time ? 1 + e.markAmp : 1) * MG.RelicSystem.damageMult(battle, e);
       const dmg = Math.max(1, (raw * amp * 100) / (100 + e.armor));
       e.hp -= dmg;
       e.hitFlash = 0.12;
@@ -112,13 +131,26 @@
       e.hp = 0;
       e.deathT = 0;
       battle.stats.kills++;
+      if (e.data.elite || e.data.boss) battle.stats.elites++;
+      // skill-mod cooldown refund on kill (e.g. 로젤 '연쇄 처형')
+      if (kind === 'skill' && killer && killer.def && killer.def.skill) {
+        const cut = MG.SkillSystem.effective(killer).killCdCut;
+        if (cut) killer.skillCd = Math.max(0, (killer.skillCd || 0) - cut);
+      }
       battle.emitRelic('kill', { killer, enemy: e, kind });
+      battle.bus.emit('enemyKilled', { enemy: e, killer, kind });
+    },
+
+    damageTakenMult(battle, u) {
+      let m = MG.RelicSystem.damageTakenMult(battle.run);
+      for (const b of u.b.buffs) if (b.stat === 'taken' && b.until > battle.time) m *= 1 - b.pct;
+      return m;
     },
 
     dealToAlly(battle, attacker, u, raw) {
       if (u.hp <= 0) return 0;
       const def = this.stat(u, 'def', battle) * (1 - (attacker && attacker.armorPierce ? attacker.armorPierce : 0));
-      let dmg = Math.max(1, (raw * 100) / (100 + def));
+      let dmg = Math.max(1, ((raw * 100) / (100 + def)) * this.damageTakenMult(battle, u));
       if (u.b.shield > 0) {
         const absorbed = Math.min(u.b.shield, dmg);
         u.b.shield -= absorbed;
@@ -129,11 +161,13 @@
       if (dmg > 0) battle.float(u.b.x, u.b.y - 95, '-' + Math.round(dmg), '#ff6b8a');
       if (dmg > u.maxHp * 0.08 && !u.b.pending && u.hp > 0) u.b.anim = { name: 'hurt', t: 0 };
       battle.emitRelic('allyDamaged', { unit: u, attacker, dmg });
+      if (u.hp <= 0 && MG.RelicSystem.tryPhoenix(battle, u)) return dmg;
       if (u.hp <= 0) {
         u.hp = 0;
         u.b.anim = { name: 'ko', t: 0 };
         u.b.pending = null;
         u.b.koT = 0;
+        u.b.regen = null;
         battle.bus.emit('allyDown', { unit: u });
         battle.float(u.b.x, u.b.y - 130, '전투 불능', '#ff6b8a');
       }
@@ -150,7 +184,6 @@
         const u = party.get(id);
         const { lane, slot } = MG.FormationSystem.parseKey(key);
         const p = MG.FormationSystem.position(lane, slot);
-        // glide to slot position (formation swaps, entry)
         u.b.x += (p.x - u.b.x) * Math.min(1, dt * 8);
         u.b.y += (p.y - u.b.y) * Math.min(1, dt * 8);
         u.b.hurtFlash = Math.max(0, u.b.hurtFlash - dt);
@@ -160,9 +193,19 @@
           if (u.b.koT > KO_RETIRE_TIME) party.retireFallen(id);
           continue;
         }
-        // expire buffs / shields
         u.b.buffs = u.b.buffs.filter((b) => b.until > battle.time);
         if (u.b.shieldUntil <= battle.time) u.b.shield = 0;
+        // regeneration (엘리시아)
+        if (u.b.regen) {
+          if (u.b.regen.until <= battle.time) u.b.regen = null;
+          else {
+            u.b.regen.acc += dt;
+            if (u.b.regen.acc >= 1) {
+              u.b.regen.acc -= 1;
+              this.heal(u, u.maxHp * u.b.regen.pct, battle);
+            }
+          }
+        }
 
         if (battle.phase === 'advance') {
           if (u.b.anim.name !== 'walk') u.b.anim = { name: 'walk', t: 0 };
@@ -170,7 +213,6 @@
         }
         if (u.b.anim.name === 'walk') u.b.anim = { name: 'idle', t: 0 };
 
-        // attack in progress
         if (u.b.pending) {
           const a = ANIM[u.b.pending.anim];
           if (!u.b.pending.fired && u.b.anim.t >= a.hit) {
@@ -196,7 +238,7 @@
             u.b.anim = { name: anim, t: 0 };
             u.b.pending = { anim, target, fired: false };
           } else {
-            u.b.atkTimer = u.def.stats.atkInterval; // ready, waiting for a target
+            u.b.atkTimer = u.def.stats.atkInterval;
           }
         }
       }
@@ -208,23 +250,23 @@
       if (!t) return;
       let raw = this.stat(u, 'atk', battle);
       if (u.def.attackType === 'melee') {
-        if (slot === 'back' && battle.party.slots[lane + '-front']) raw *= BACK_MELEE_PENALTY;
+        if (slot === 'back' && battle.party.slots[lane + '-front'] && !MG.RelicSystem.has(battle.run, 'rear_dagger')) raw *= BACK_MELEE_PENALTY;
         this.dealToEnemy(battle, u, t, raw, { kind: 'basic' });
         battle.vfx.push({ type: 'slash', x: t.x, y: t.y - t.h / 2, t: 0, dur: 0.2, color: u.def.color });
+        battle.bus.emit('attack', { unit: u, melee: true });
       } else {
         battle.projectiles.push({
           from: 'ally', owner: u, lane, x: u.b.x + 40, y: u.b.y - 55, target: t, speed: 900,
           raw, charId: u.def.id, color: u.def.color,
         });
+        battle.bus.emit('attack', { unit: u, melee: false });
       }
     },
 
     updateProjectiles(battle, dt) {
       for (const p of battle.projectiles) {
         let t = p.target;
-        if (p.from === 'ally' && (!t || t.dead)) {
-          t = p.target = this.laneEnemies(battle, p.lane)[0] || null;
-        }
+        if (p.from === 'ally' && (!t || t.dead)) t = p.target = this.laneEnemies(battle, p.lane)[0] || null;
         if (!t || (p.from === 'enemy' && t.hp <= 0)) {
           p.done = true;
           continue;
@@ -238,7 +280,7 @@
         if (d <= step + 4) {
           p.done = true;
           if (p.from === 'ally') {
-            this.dealToEnemy(battle, p.owner, t, p.raw, { kind: 'basic' });
+            this.dealToEnemy(battle, p.owner, t, p.raw, { kind: p.kind || 'basic' });
             battle.vfx.push({ type: 'impact', charId: p.charId, x: tx, y: ty + 30, t: 0, dur: 0.3 });
           } else {
             this.dealToAlly(battle, p.owner, t, p.raw);
@@ -256,8 +298,7 @@
       if (battle.phase !== 'combat') return;
       for (const u of battle.party.all()) {
         if (u.hp <= 0) continue;
-        const haste = battle.hasteUnitId === u.id ? MG.RelicSystem.hastePct(battle.run) : 0;
-        u.skillCd = Math.max(0, (u.skillCd || 0) - dt * (1 + haste));
+        u.skillCd = Math.max(0, (u.skillCd || 0) - dt * (1 + MG.RelicSystem.skillHaste(battle, u)));
       }
     },
 

@@ -5,30 +5,71 @@
   const F = () => MG.FormationSystem;
 
   const SWAP_COOLDOWN = 5;
+  const FIELD_SIZE = 3;
+  const MAX_PARTY = 6;
+  const FRONT_ROLES = ['guardian', 'assault'];
 
   class PartyManager {
     constructor() {
       this.units = {};
       this.slots = { '0-front': null, '0-back': null, '1-front': null, '1-back': null };
       this.bench = [];
-      this.moving = {}; // unitId -> {toLane, toKey, t, total}
+      this.moving = {}; // unitId -> {fromLane, toLane, toKey, t, total}
+      this.run = null;
     }
 
-    init(start) {
-      const mk = (charId) => {
-        const def = MG.CHARACTERS[charId];
-        const u = { id: charId, charId, def, hp: def.stats.hp, maxHp: def.stats.hp };
-        this.units[charId] = u;
-        return u;
-      };
-      for (const a of start.active) {
-        mk(a.charId);
-        this.slots[a.lane + '-' + a.slot] = a.charId;
+    /** charIds: chosen members in order; the first FIELD_SIZE go to the field. */
+    init(charIds, run) {
+      this.run = run || null;
+      const ids = (Array.isArray(charIds) ? charIds : charIds.active ? charIds.active.map((a) => a.charId).concat(charIds.bench) : []).slice(0, MAX_PARTY);
+      ids.forEach((c, i) => this.addUnit(c, i < FIELD_SIZE));
+    }
+
+    makeUnit(charId) {
+      const def = MG.CHARACTERS[charId];
+      const u = { id: charId, charId, def, hp: def.stats.hp, maxHp: def.stats.hp, mods: [] };
+      this.units[charId] = u;
+      this.recalcUnit(u);
+      u.hp = u.maxHp;
+      return u;
+    }
+
+    /** Add a member: field if allowed and a slot is free (role-preferred row), else bench. */
+    addUnit(charId, toField) {
+      if (this.units[charId] || Object.keys(this.units).length >= MAX_PARTY) return null;
+      const u = this.makeUnit(charId);
+      const fieldCount = Object.values(this.slots).filter(Boolean).length;
+      if (toField !== false && fieldCount < FIELD_SIZE) {
+        const key = this.pickSlot(u.def.role);
+        if (key) {
+          this.slots[key] = charId;
+          return u;
+        }
       }
-      for (const c of start.bench) {
-        mk(c);
-        this.bench.push(c);
-      }
+      this.bench.push(charId);
+      return u;
+    }
+
+    pickSlot(role) {
+      const pref = FRONT_ROLES.includes(role) ? 'front' : 'back';
+      const other = pref === 'front' ? 'back' : 'front';
+      const laneCount = (l) => ['front', 'back'].filter((s) => this.slots[l + '-' + s]).length;
+      const lanes = [0, 1].sort((a, b) => laneCount(a) - laneCount(b) || a - b);
+      for (const l of lanes) if (!this.slots[l + '-' + pref]) return l + '-' + pref;
+      for (const l of lanes) if (!this.slots[l + '-' + other]) return l + '-' + other;
+      return null;
+    }
+
+    /** Max HP = base x (1 + meta + run bonus). Current HP keeps its ratio. */
+    recalcUnit(u) {
+      const run = this.run;
+      const pct = run ? ((run.meta && run.meta.hp) || 0) + ((run.bonus && run.bonus.hp) || 0) : 0;
+      const newMax = Math.round(u.def.stats.hp * (1 + pct));
+      if (u.maxHp && u.maxHp !== newMax && u.hp > 0) u.hp = Math.max(1, Math.round((u.hp * newMax) / u.maxHp));
+      u.maxHp = newMax;
+    }
+    recalcAll() {
+      for (const u of this.all()) this.recalcUnit(u);
     }
 
     get(id) {
@@ -36,6 +77,12 @@
     }
     all() {
       return Object.values(this.units);
+    }
+    size() {
+      return Object.keys(this.units).length;
+    }
+    has(charId) {
+      return !!this.units[charId];
     }
     isAlive(id) {
       return this.units[id] && this.units[id].hp > 0;
@@ -94,7 +141,7 @@
         const u = this.units[benchId];
         MG.CombatSystem.resetUnitBattleState(u, battle, false);
         u.b.anim = { name: 'spin', t: 0 };
-        battle.swapCd = free ? battle.swapCd : SWAP_COOLDOWN * MG.RelicSystem.swapCooldownMult(battle.run);
+        if (!free) battle.swapCd = Math.max(0.5, SWAP_COOLDOWN * MG.RelicSystem.swapCooldownMult(battle.run) - ((battle.run.meta && battle.run.meta.swapCdCut) || 0));
         if (free) {
           battle.tagWindow = battle.tagWindow.filter((t) => t !== tag);
           MG.CombatSystem.addBuff(u, { id: 'tag_relay', stat: 'atk', pct: tag.atkPct, dur: tag.dur }, battle);
@@ -116,7 +163,6 @@
       const a = get(aRef);
       const b = get(bRef);
       if (aRef.type === 'bench' && bRef.type === 'bench') return { ok: true };
-      // keep bench dense: if moving a slot unit to an empty bench index, push instead
       if (bRef.type === 'bench' && b === undefined) {
         this.slots[aRef.key] = null;
         if (a) this.bench.push(a);
@@ -136,7 +182,6 @@
       const { lane } = F().parseKey(key);
       const to = 1 - lane;
       const target = ['front', 'back'].map((s) => to + '-' + s).find((k) => !this.slots[k] && !this.isReserved(k));
-      // a fallen ally occupying a slot does not block arrival: it is sent to the bench
       const fallen = ['front', 'back'].map((s) => to + '-' + s).find((k) => this.slots[k] && !this.isAlive(this.slots[k]) && !this.isReserved(k));
       const toKey = target || fallen;
       if (!toKey) return { ok: false, reason: '대상 진격로에 빈 자리가 없습니다' };
@@ -148,7 +193,8 @@
         return { ok: true };
       }
       const u = this.units[unitId];
-      this.moving[unitId] = { fromLane: lane, toLane: to, toKey, t: 0, total: F().G.LANE_MOVE_TIME };
+      const total = F().G.LANE_MOVE_TIME * MG.RelicSystem.laneMoveMult(battle.run);
+      this.moving[unitId] = { fromLane: lane, toLane: to, toKey, t: 0, total };
       u.b.anim = { name: 'walk', t: 0 };
       u.b.pending = null;
       battle.bus.emit('laneMoveStart', { unit: u, from: lane, to });
@@ -169,7 +215,7 @@
         }
         if (m.t >= m.total) {
           delete this.moving[id];
-          if (this.slots[m.toKey]) this.bench.push(this.slots[m.toKey]); // fallen ally makes room
+          if (this.slots[m.toKey]) this.bench.push(this.slots[m.toKey]);
           this.slots[m.toKey] = id;
           const p = F().position(m.toLane, F().parseKey(m.toKey).slot);
           u.b.x = p.x;
@@ -180,7 +226,15 @@
       }
     }
 
-    /** Sends a fallen field unit to the bench so the slot shows as empty. */
+    /** Clears travellers at the end of a battle so nobody is lost between slots. */
+    settleMoving() {
+      for (const [id, m] of Object.entries(this.moving)) {
+        delete this.moving[id];
+        if (!this.slots[m.toKey]) this.slots[m.toKey] = id;
+        else this.bench.push(id);
+      }
+    }
+
     retireFallen(id) {
       const k = this.keyOf(id);
       if (k) {
@@ -205,5 +259,7 @@
   }
 
   PartyManager.SWAP_COOLDOWN = SWAP_COOLDOWN;
+  PartyManager.MAX_PARTY = MAX_PARTY;
+  PartyManager.FIELD_SIZE = FIELD_SIZE;
   MG.PartyManager = PartyManager;
 })();

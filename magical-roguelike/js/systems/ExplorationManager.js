@@ -23,6 +23,20 @@
       run.path.push(id);
       return run.map.nodes[id];
     },
+    /** Reveal wave plans of the battle nodes reachable next (level 1: types, 2: per lane). */
+    scoutNext(run, level) {
+      const from = run.currentId ? run.map.nodes[run.currentId].next : run.map.startIds;
+      run.scouted = run.scouted || {};
+      for (const id of from) {
+        const n = run.map.nodes[id];
+        if (MG.NODE_TYPES[n.type].battle) run.scouted[id] = Math.max(run.scouted[id] || 0, level);
+      }
+    },
+    /** Information level of a battle node: 0 = waves + risk, 1 = enemy types, 2 = lanes. */
+    scoutLevel(run, id) {
+      return Math.max((run.scouted && run.scouted[id]) || 0, (run.meta && run.meta.scoutLevel) || 0);
+    },
+
     complete(run) {
       if (!run.currentId) return false;
       run.completed.add(run.currentId);
