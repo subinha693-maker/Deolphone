@@ -6,6 +6,8 @@
     /** opts.recruit: whether recruit nodes may be placed (candidates exist). */
     generate(rng, opts) {
       const o = opts || {};
+      const depth = o.depth || 1;
+      const dinfo = (MG.DEPTHS && MG.DEPTHS[depth - 1]) || { difficultyOffset: 0, finalDifficulty: 6 };
       const cfg = MG.MAP_CONFIG;
       const nodes = {};
       const columns = [];
@@ -16,7 +18,7 @@
         const col = [];
         for (let r = 0; r < n; r++) {
           const node = {
-            id: 'n' + id++,
+            id: 'd' + depth + 'n' + id++, // depth prefix: wave plans differ per depth
             col: c,
             row: r,
             y: n === 1 ? 0.5 : (r + 0.5) / n, // normalised vertical position
@@ -86,8 +88,9 @@
 
       // difficulty + defense flag
       for (const node of Object.values(nodes)) {
-        node.difficulty = Math.min(6, 1 + Math.floor(node.col * 0.75)) + (node.type === 'elite' ? 1 : 0);
-        if (node.type === 'final') node.difficulty = 6;
+        node.difficulty = Math.min(6, 1 + Math.floor(node.col * 0.75)) + (node.type === 'elite' ? 1 : 0) + dinfo.difficultyOffset;
+        if (node.type === 'final') node.difficulty = dinfo.finalDifficulty;
+        node.depth = depth;
         node.defense = node.type === 'battle' && node.col > 0 && rng.chance(cfg.defenseChance);
         if (node.type === 'final') node.defense = true;
         node.risk = node.type === 'elite' || node.type === 'final' ? 'high' : node.defense ? 'mid' : node.type === 'battle' ? 'mid' : 'low';
@@ -123,7 +126,7 @@
         const other = columns[b.col - 1].map((i) => nodes[i]).filter((a) => !b.prev.includes(a.id));
         if (other.length) link(other.sort((p, q) => Math.abs(p.y - b.y) - Math.abs(q.y - b.y))[0], b);
       }
-      return { nodes, columns, startIds: columns[0].slice(), finalId: columns[columns.length - 1][0] };
+      return { nodes, columns, depth, startIds: columns[0].slice(), finalId: columns[columns.length - 1][0] };
 
       function link(a, b) {
         if (!a.next.includes(b.id)) a.next.push(b.id);
@@ -160,7 +163,7 @@
         case 'rest':
           return '회복 · 부활';
         case 'final':
-          return '탐사 구역 완료';
+          return (node.depth || 1) < MG.RUN_CONFIG.maxDepth ? '희귀 유물 · 개조 · 다음 심도로' : '탐사 완료';
         case 'shop':
           return '유물 · 개조 · 물약 구매';
         case 'recruit':

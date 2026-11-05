@@ -49,5 +49,5 @@
   ];
 
   // Moonlight income at the end of a run (paid in full even on failure)
-  MG.MOON_RULES = { perNode: 3, perBattle: 1, perElite: 5, clearBonus: 40, shardsDiv: 5, perCodex: 2, ascMult: 0.2 };
+  MG.MOON_RULES = { perNode: 3, perBattle: 1, perElite: 5, clearBonus: 40, shardsDiv: 5, perCodex: 2, perDepth: 15, ascMult: 0.2 };
 })();

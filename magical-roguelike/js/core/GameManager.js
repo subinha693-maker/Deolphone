@@ -80,9 +80,10 @@
         unlocks: [],
         unlockedChars: MG.DEFAULT_UNLOCKED.slice(),
         asc: 0,
+        depth: 1,
         codexNew: 0,
         rerollsLeft: 0,
-        stats: { nodes: 0, battles: 0, battlesWon: 0, kills: 0, elites: 0 },
+        stats: { nodes: 0, battles: 0, battlesWon: 0, kills: 0, elites: 0, depthsCleared: 0 },
       };
       if (MG.Meta) MG.Meta.applyToRun(run, o.asc || 0);
       run.rerollsLeft = run.meta.rerolls || 0;
@@ -91,7 +92,7 @@
       if (!party.length) party = MG.STARTING_PARTY.filter((c) => allowed.includes(c));
       run.party = new MG.PartyManager();
       run.party.init(party.slice(0, MG.RUN_CONFIG.startPartySize), run);
-      run.map = MG.MapManager.generate(rng, { recruit: MG.NodeManager.canRecruit(run) });
+      run.map = MG.MapManager.generate(rng, { recruit: MG.NodeManager.canRecruit(run), depth: 1 });
       this.run = run;
       this.battle = null;
       this.ctx = null;
@@ -160,7 +161,7 @@
             this.sm.go('RUN_FAILED');
           } else {
             this.run.stats.battlesWon++;
-            if (b.node.type === 'final') this.completeNode();
+            if (b.node.type === 'final' && this.run.depth >= MG.RUN_CONFIG.maxDepth) this.completeNode();
             else {
               const rewards = MG.RewardSystem.battleRewards(this.run, b.node);
               this.run.shards += rewards.shards;
@@ -293,9 +294,30 @@
       this.battle = null;
       this.ctx = null;
       if (this.run.party.allDown()) this.sm.go('RUN_FAILED');
-      else if (isFinal) this.sm.go('RUN_CLEARED');
-      else this.sm.go('MAP');
+      else if (isFinal && this.run.depth >= MG.RUN_CONFIG.maxDepth) {
+        this.run.stats.depthsCleared = this.run.depth;
+        this.sm.go('RUN_CLEARED');
+      } else if (isFinal) {
+        this.advanceDepth();
+        this.sm.go('MAP');
+      } else this.sm.go('MAP');
       this.bus.emit('run', this.run);
+    }
+
+    /** Clear of a depth's final battle: build the next depth's map. Party, relics, mods, shards carry over. */
+    advanceDepth() {
+      const run = this.run;
+      run.stats.depthsCleared = run.depth;
+      run.depth++;
+      run.map = MG.MapManager.generate(run.rng, { recruit: MG.NodeManager.canRecruit(run), depth: run.depth });
+      run.currentId = null;
+      run.completed = new Set();
+      run.path = [];
+      run.scouted = {};
+      run.party.settleMoving();
+      for (const u of run.party.all()) run.party.heal(u.id, MG.RUN_CONFIG.depthHealPct);
+      run.justDescended = run.depth; // UI shows the depth banner once
+      this.bus.emit('depth', { depth: run.depth });
     }
 
     settleRun(cleared) {

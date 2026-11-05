@@ -95,6 +95,7 @@
         { label: `완료한 노드 ${run.stats.nodes} × ${R.perNode}`, v: run.stats.nodes * R.perNode },
         { label: `승리한 전투 ${run.stats.battlesWon} × ${R.perBattle}`, v: run.stats.battlesWon * R.perBattle },
         { label: `처치한 강적 ${run.stats.elites} × ${R.perElite}`, v: run.stats.elites * R.perElite },
+        { label: `돌파한 심도 ${run.stats.depthsCleared || 0} × ${R.perDepth}`, v: (run.stats.depthsCleared || 0) * R.perDepth },
         { label: `남은 별조각 ${run.shards} ÷ ${R.shardsDiv}`, v: Math.floor(run.shards / R.shardsDiv) },
         { label: `도감 신규 ${run.codexNew || 0} × ${R.perCodex}`, v: (run.codexNew || 0) * R.perCodex },
       ];

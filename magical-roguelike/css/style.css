@@ -432,3 +432,19 @@ kbd { border: 1px solid var(--pink-400); border-radius: 3px; padding: 0 4px; mar
 .result-btns .choice-btn { width: 330px; font-size: 18px; padding: 0 40px 0 70px; }
 .shop-card .rcard { width: 158px; }
 #shopItems { gap: 8px; padding: 0 12px; }
+
+.retreat-zone { align-self: flex-start; padding: 4px 12px; font-size: 13px; border: 1px dashed var(--gold); background: rgba(242,193,78,.12); color: var(--gold); }
+.retreat-zone:hover { background: rgba(242,193,78,.25); }
+
+.depth-pips { display: inline-flex; gap: 5px; align-items: center; }
+.depth-pips i { width: 10px; height: 10px; transform: rotate(45deg); border: 1px solid var(--pink-300); display: inline-block; }
+.depth-pips i.done { background: var(--pink-400); }
+.depth-pips i.now { background: var(--gold); border-color: var(--gold); }
+#depthBanner { position: absolute; left: 0; right: 0; top: 200px; z-index: 50; text-align: center; padding: 26px 0; pointer-events: none; opacity: 0;
+  background: linear-gradient(90deg, transparent, rgba(40,16,48,.94) 25%, rgba(40,16,48,.94) 75%, transparent); }
+#depthBanner.show { animation: depthIn 2.6s ease forwards; }
+@keyframes depthIn { 0% { opacity: 0; transform: translateY(10px); } 12% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
+.db-kicker { color: var(--pink-300); letter-spacing: 6px; font-size: 14px; }
+.db-title { font-size: 54px; color: var(--pink-100); text-shadow: 0 0 18px rgba(233,140,200,.6); }
+.db-sub { font-size: 20px; color: var(--pink-200); }
+.db-note { font-size: 13px; color: var(--gold); margin-top: 6px; }

@@ -35,12 +35,19 @@ python3 tools/extract_ui.py        # 대화창/선택지 참고 이미지 → as
 | 스킬 | 배치 카드의 스킬 버튼, 또는 `Q` `W` `E` `R` (상단 전열/후열, 하단 전열/후열) |
 | 교대 | 대기열 카드 클릭 → 배치 칸 클릭 (반대 순서도 가능) |
 | 진형 변경 | 진격로 오른쪽의 `⇄ 진형` (전열 ↔ 후열) |
-| 진격로 이동 | 배치 카드의 `↕` (2초간 전투 이탈 후 다른 진격로 도착) |
+| 진격로 이동 | 배치 카드의 `↕`, 또는 배치 칸 → 다른 진격로 칸 순서로 누르기 (2초간 전투 이탈) |
+| 전열 ↔ 후열 | `⇄ 진형`, 또는 배치 칸 → 같은 진격로의 다른 칸 순서로 누르기 |
+| 대기열로 퇴각 | 배치 칸을 누른 뒤 대기열 위의 `↓ 대기열로 퇴각` (교대 대기시간 적용) |
 | 일시정지 / 배속 | `Space` / 상단 `속도 ×1·×2` |
 | 유물·시너지 목록 | 상단 `유물 · 시너지` 버튼 |
 | 탐사 맵 편성 / 물약 | 맵 하단 파티 카드 두 장을 차례로 클릭해 자리 교환, `⚱` 로 물약 사용 |
 
 ## 구현된 기능
+
+### 심도 (제 1 ~ 5심도)
+- 한 탐사 맵의 최종 전투를 이기면 보상(희귀 유물·개조)을 고른 뒤 다음 심도의 새 맵으로 내려갑니다. 파티·유물·개조·별조각은 유지되고, 살아 있는 아군은 체력 30% 회복.
+- 심도마다 노드 난이도 +1. 최종 전투: 1~2심도는 흑철 기사가 이끄는 문지기 전투, **가시관의 주교는 3심도부터** 등장, 5심도는 주교 두 명.
+- 제 5심도 최종 전투를 이기면 탐사 완료. 돌파한 심도마다 월광 +15. 심도 정보는 `MG.DEPTHS`(`js/data/config.js`), 최종 웨이브는 `MG.FINAL_WAVES_BY_DEPTH`(`js/data/nodes.js`).
 
 ### 기본 루프
 - **게임 상태 머신** (`GameManager`): TITLE → PARTY_SELECT → MAP → NODE_ENTER → BATTLE / EVENT / REST / RELIC / SHOP / RECRUIT → REWARD → NODE_COMPLETE → MAP / RUN_CLEARED / RUN_FAILED. SANCTUARY, CODEX 화면도 같은 상태 머신을 거칩니다. 허용되지 않은 전환은 거부됩니다.
@@ -64,7 +71,7 @@ python3 tools/extract_ui.py        # 대화창/선택지 참고 이미지 → as
 1. **저장** (`SaveManager`): localStorage + 메모리 폴백, 손상본 백업(`mg_save_corrupt`), 내보내기/불러오기 문자열, 2단계 확인 초기화. 저장이 막힌 환경이면 타이틀에 경고.
 2. **오디오** (`AudioManager`): Web Audio로 효과음 30여 종 + 배경음 6곡(타이틀/맵/전투/보스/사건·휴식/상점)을 실시간 합성. 마스터/효과음/배경음 볼륨, 음소거, 일시정지 시 덕킹. 전투 소리는 `battle.bus` 이벤트 구독으로만 연결.
 3. **웨이브 예고**: 전투 중 NEXT 패널(진격로별 적 아이콘·수·강적/보스/비행/원거리), 강적·보스 출현 2초 전 경고, 보스 소환 1초 전 경고. 웨이브 계획은 노드별 하위 RNG로 미리 결정되어 맵 미리보기와 실제 전투가 일치하고 `run.rng`를 소비하지 않음. 정찰 등급 L0/L1/L2 ("정찰 보고서", 인형 행상, 성소 "정찰 숙련").
-4. **사건 23개**: 신규 연산(`mod`, `removeCurse`, `sacrificeRelic`, `runBonus`, `nextBattles`, `ambush`, `flag`, `discount`, `recruit`, `reviveOne`, `relicChoice`, `wish`, `allShards`), 조건(`require`/`when`), 연쇄 3개(인형 행상, 거울, 편지), 발화자 가중치 ×2·부재 시 다른 동료가 대사.
+4. **사건 28개**(유물 획득 사건 5개 포함): 신규 연산(`mod`, `removeCurse`, `sacrificeRelic`, `runBonus`, `nextBattles`, `ambush`, `flag`, `discount`, `recruit`, `reviveOne`, `relicChoice`, `wish`, `allShards`), 조건(`require`/`when`), 연쇄 3개(인형 행상, 거울, 편지), 발화자 가중치 ×2·부재 시 다른 동료가 대사.
 5. **파티 선택 + 영입** (위 참조).
 6. **영구성장**: 월광(런 종료 시 실패해도 지급, 결과 화면에 내역), 별빛 성소 23개 업그레이드(탐사/전투/보상/해금, 선행 조건·상한), 난이도 단계 1~5(첫 클리어마다 해금), 도감(마법소녀/유물/적/사건, 신규 발견 시 월광 보너스).
 - **데이터 분리**: 캐릭터, 적, 유물, 시너지, 개조, 노드, 웨이브, 사건, 상점, 성소, 난이도 수치는 모두 `js/data/`.
@@ -78,7 +85,7 @@ js/systems/   ExplorationManager · MapManager · NodeManager · WaveManager(+Ba
               PartyManager · FormationSystem · CombatSystem · SkillSystem · RelicSystem · RewardSystem
               ShopSystem · MetaProgress
 js/ui/        AudioManager · Assets · BattleRenderer · SceneArt · UIManager · UIScreens
-tests/        run-tests.js (DOM 없이 로직 검증 34개)
+tests/        run-tests.js (DOM 없이 로직 검증 38개)
 tools/        extract_sprites.py · extract_ui.py · source/(원본 이미지)
 ```
 

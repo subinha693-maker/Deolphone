@@ -378,7 +378,8 @@
       const run = gm.run;
       if (!run) return;
       const EM = MG.ExplorationManager;
-      $('mapTopbar').innerHTML = `<span class="title">${esc(MG.RUN_CONFIG.regionName)}</span><span class="tag">탐사 ${run.completed.size}/${run.map.columns.length} 구역</span>
+      const dinfo = MG.DEPTHS[run.depth - 1];
+      $('mapTopbar').innerHTML = `<span class="title">제 ${run.depth}심도 · ${esc(dinfo.name)}</span><span class="depth-pips">${MG.DEPTHS.map((d) => `<i class="${d.depth < run.depth ? 'done' : d.depth === run.depth ? 'now' : ''}"></i>`).join('')}</span><span class="tag">탐사 ${run.completed.size}/${run.map.columns.length} 구역</span>
         ${run.asc ? `<span class="tag def">${MG.ASCENSION[run.asc].name}</span>` : ''}
         <span class="spacer"></span>${this.resourcesHtml()}<button class="tb-btn" id="btnAbandon">탐사 포기</button>`;
       this.bindRelicButton();
@@ -456,6 +457,27 @@
       }
       this.renderNodeDetail(this.pickedNode);
       this.renderMapParty();
+      if (run.justDescended) {
+        const d = MG.DEPTHS[run.justDescended - 1];
+        run.justDescended = 0;
+        this.showDepthBanner(d);
+      }
+    }
+
+    showDepthBanner(d) {
+      let el = $('depthBanner');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'depthBanner';
+        $('stage').appendChild(el);
+      }
+      el.innerHTML = `<div class="db-kicker">DEPTH ${d.depth} / ${MG.RUN_CONFIG.maxDepth}</div><div class="db-title">제 ${d.depth}심도</div><div class="db-sub">${esc(d.name)}</div><div class="db-note">아군 체력 ${Math.round(MG.RUN_CONFIG.depthHealPct * 100)}% 회복 · 적이 더 강해집니다</div>`;
+      el.classList.remove('show');
+      void el.offsetWidth;
+      el.classList.add('show');
+      clearTimeout(this._depthT);
+      this._depthT = setTimeout(() => el.classList.remove('show'), 2600);
+      MG.Audio && MG.Audio.play('node_clear');
     }
 
     /** Wave plan summary for the map (by information level). */
@@ -494,7 +516,7 @@
         rest: '휴식, 간호, 정비 중 하나를 선택합니다.',
         shop: '별조각으로 유물 · 스킬 개조 · 물약을 삽니다.',
         recruit: run.party.size() >= MG.PartyManager.MAX_PARTY ? '파티가 가득 차 있어 사건으로 바뀝니다.' : `동료 후보 ${2 + (run.meta.recruitCandidates || 0)}명 중 1명을 영입합니다. (후보는 진입해야 알 수 있습니다)`,
-        final: '구역의 주인 「가시관의 주교」와의 최종 방어전.',
+        final: `제 ${run.depth}심도의 끝 「${MG.DEPTHS[run.depth - 1].finalName}」과의 최종 방어전.${run.depth < MG.RUN_CONFIG.maxDepth ? ' 승리하면 보상을 받고 다음 심도로 내려갑니다.' : ' 승리하면 탐사 완료!'}`,
       }[n.type];
       const next = n.next.map((x) => MG.NODE_TYPES[run.map.nodes[x].type].name).join(', ') || '없음';
       el.innerHTML = `<h3 style="color:${t.color}">${t.icon} ${t.name}${n.defense ? ' · 방어전' : ''}</h3>
@@ -532,7 +554,10 @@
         }
         html += '</div>';
       }
-      html += `</div><div class="party-bench"><div class="lbl2">대기열 · 카드 두 장을 차례로 눌러 위치 교환 (맵에서는 대기시간 없음)</div><div class="bench-wrap">`;
+      const selId = this.sel && this.sel.type === 'slot' ? P.slots[this.sel.key] : null;
+      html += `</div><div class="party-bench"><div class="lbl2">대기열 · 카드 두 장을 차례로 눌러 위치 교환 (맵에서는 대기시간 없음)</div>${
+        selId ? `<button class="retreat-zone" id="btnMapRetreat">↓ ${esc(P.get(selId).def.name)}을(를) 대기열로</button>` : ''
+      }<div class="bench-wrap">`;
       P.bench.forEach((id, i) => {
         const u = P.get(id);
         const sel = this.sel && this.sel.type === 'bench' && this.sel.index === i ? 'sel' : '';
@@ -553,6 +578,13 @@
           this.renderMapParty();
         };
       });
+      const mr = $('btnMapRetreat');
+      if (mr)
+        mr.onclick = () => {
+          P.swapFree(this.sel, { type: 'bench', index: P.bench.length });
+          this.sel = null;
+          this.renderMapParty();
+        };
       el.querySelectorAll('.potion').forEach((b) => {
         b.onclick = () => {
           const r = this.gm.usePotion(b.dataset.id);
@@ -571,7 +603,7 @@
       const b = this.gm.battle;
       const n = b.node;
       const t = MG.NODE_TYPES[n.type];
-      $('battleTopbar').innerHTML = `<span class="title">${t.icon} ${t.name}</span>${n.defense ? '<span class="tag def">홈 포인트 방어전</span>' : ''}
+      $('battleTopbar').innerHTML = `<span class="title">${t.icon} ${n.type === 'final' ? esc(MG.DEPTHS[(n.depth || 1) - 1].finalName) : t.name}</span><span class="tag">제 ${n.depth || 1}심도</span>${n.defense ? '<span class="tag def">홈 포인트 방어전</span>' : ''}
         <span class="tag">난이도 ${stars(n.difficulty)}</span>
         <div class="wave-pips" id="wavePips"></div><span class="phase-label" id="phaseLabel"></span>
         <span class="spacer"></span><div id="battleRes" style="display:flex;gap:14px;align-items:center"></div>
@@ -749,7 +781,18 @@
             if (!r.ok) this.toast(r.reason);
             this.sel = null;
           } else if (this.sel && this.sel.type === 'slot' && this.sel.key === key) this.sel = null;
-          else this.sel = { type: 'slot', key };
+          else if (this.sel && this.sel.type === 'slot') {
+            // slot -> slot: same lane = front/back swap, other lane = lane move
+            const from = MG.FormationSystem.parseKey(this.sel.key);
+            const to = MG.FormationSystem.parseKey(key);
+            const unitId = P.slots[this.sel.key];
+            let r;
+            if (from.lane === to.lane) r = MG.FormationSystem.swapRows(P, from.lane, b);
+            else if (unitId) r = P.moveLane(unitId, b);
+            else r = { ok: false, reason: '이동할 아군을 먼저 선택하세요' };
+            if (!r.ok) this.toast(r.reason);
+            this.sel = null;
+          } else this.sel = { type: 'slot', key };
           this.updateBattleHud(true);
         };
       });
@@ -786,15 +829,26 @@
       const cdTxt = b.swapCd > 0 ? `교대 대기 ${Math.ceil(b.swapCd)}초` : '교대 가능';
       if (sig !== this.benchSig) {
         this.benchSig = sig;
-        let html = `<div class="bench-head"><span>대기열</span><span id="swapCd"></span></div><div class="bench-list">`;
+        const selUnit = this.sel && this.sel.type === 'slot' ? P.slots[this.sel.key] : null;
+        let html = `<div class="bench-head"><span>대기열</span><span id="swapCd"></span></div>${
+          selUnit ? `<button class="retreat-zone" id="btnRetreat">↓ ${this.esc(P.get(selUnit).def.name)}을(를) 대기열로 퇴각</button>` : ''
+        }<div class="bench-list">`;
         P.bench.forEach((id) => {
           const u = P.get(id);
           const sel = this.sel && this.sel.type === 'bench' && this.sel.id === id ? 'sel' : '';
           html += `<div class="pcard small ${sel} ${u.hp <= 0 ? 'down' : ''}" data-bench="${id}" data-tip="${esc(this.unitTip(u))}">${this.unitCardHtml(u)}</div>`;
         });
         if (!P.bench.length) html += '<div class="hint">대기 아군 없음 — 동료 노드에서 영입할 수 있습니다.</div>';
-        html += `</div><div class="hint">대기 아군 → 배치 칸 순서로 눌러 교대. 퇴각해도 체력은 유지되고 대기 중에도 스킬 대기시간이 회복됩니다.</div>`;
+        html += `</div><div class="hint">대기 아군 → 배치 칸: 교대 · 배치 칸 → 같은 진격로 칸: 전열/후열 이동 · 배치 칸 → 다른 진격로 칸: 진격로 이동 · 배치 칸 선택 후 퇴각 버튼: 대기열로</div>`;
         $('benchPanel').innerHTML = html;
+        const rb = $('btnRetreat');
+        if (rb)
+          rb.onclick = () => {
+            const r = P.retreat(this.sel.key, b);
+            if (!r.ok) this.toast(r.reason);
+            this.sel = null;
+            this.updateBattleHud(true);
+          };
         $('benchPanel').querySelectorAll('.pcard[data-bench]').forEach((c) => {
           c.onclick = () => {
             const id = c.dataset.bench;

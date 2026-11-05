@@ -218,6 +218,50 @@
         { label: '힘을 빈다 (별조각 8)', require: { shards: 8 }, result: '별빛이 유물로 굳었다.', ops: [{ op: 'shards', n: -8 }, { op: 'relic', rarity: 'rare' }] },
       ],
     },
+    // ---- 유물 획득 사건
+    {
+      id: 'forgotten_vault', title: '잊힌 보물고', speaker: '노아', art: 'altar',
+      text: '공허 너머로 잠긴 보물고가 보여. 문을 억지로 열면 반동이 오겠지만… 안에는 유물이 세 개 있어.',
+      choices: [
+        { label: '문을 억지로 연다', result: '반동에 다쳤지만 보물고가 열렸다. (무작위 아군 체력 -15%)', ops: [{ op: 'damageRandom', pct: 0.15 }, { op: 'relicChoice', n: 3, rarity: 'any' }] },
+        { label: '틈새로 하나만 꺼낸다', result: '손에 잡힌 것을 꺼냈다.', ops: [{ op: 'relic', rarity: 'common' }] },
+      ],
+    },
+    {
+      id: 'pilgrim', title: '성유물 순례자', speaker: '세실리아', art: 'shrine',
+      text: '순례자 한 분이 성유물을 나누어 주고 계세요. 대가로 우리의 물약이나 별조각을 원하신대요.',
+      choices: [
+        { label: '물약 2개를 바친다', require: { potions: 2 }, result: '순례자가 희귀한 성유물을 건넸다.', ops: [{ op: 'potions', n: -2 }, { op: 'relic', rarity: 'rare' }] },
+        { label: '별조각 15개를 바친다', require: { shards: 15 }, result: '순례자가 성유물 하나를 건넸다.', ops: [{ op: 'shards', n: -15 }, { op: 'relic', rarity: 'any' }] },
+        { label: '축복만 받는다', result: '마음이 편안해졌다. (전체 체력 10% 회복)', ops: [{ op: 'healAll', pct: 0.1 }] },
+      ],
+    },
+    {
+      id: 'three_altars', title: '세 개의 제단', speaker: '엘리시아', art: 'altar',
+      text: '불꽃, 방패, 별이 새겨진 제단이 나란히 있어요. 하나에만 기도를 올릴 수 있을 것 같아요.',
+      choices: [
+        { label: '불꽃의 제단에 기도한다', result: '불꽃이 유물로 맺혔다.', ops: [{ op: 'relic', rarity: 'any', tag: 'fire' }] },
+        { label: '방패의 제단에 기도한다', result: '단단한 빛이 유물로 맺혔다.', ops: [{ op: 'relic', rarity: 'any', tag: 'guard' }] },
+        { label: '별의 제단에 기도한다', result: '별빛이 유물로 맺혔다.', ops: [{ op: 'relic', rarity: 'any', tag: 'skill' }] },
+      ],
+    },
+    {
+      id: 'mimic_chest', title: '수상한 보물상자', speaker: '네로', art: 'cart',
+      text: '냐, 보물상자다! …근데 방금 움찔하지 않았어? 그냥 열어 볼까, 아니면 한 대 때려 볼까?',
+      choices: [
+        { label: '그냥 연다 (60%)', result: '', ops: [{ op: 'gamble', chance: 0.6, win: [{ op: 'relic', rarity: 'rare' }], lose: [{ op: 'damageAll', pct: 0.15 }], winText: '진짜 보물상자였다!', loseText: '미믹이었다! 물어뜯기고 도망쳤다. (전체 체력 -15%)' }] },
+        { label: '먼저 때려 본다', result: '미믹이 기절했다. 안에서 유물을 꺼냈다.', ops: [{ op: 'damageRandom', pct: 0.1 }, { op: 'relic', rarity: 'common' }] },
+      ],
+    },
+    {
+      id: 'frozen_relic', title: '얼음에 갇힌 유물', speaker: '세린', art: 'well',
+      text: '두꺼운 얼음 속에 유물이 잠들어 있어. 내 검으로 깨면 꺼낼 수 있어. 시간은 좀 걸리겠지만.',
+      choices: [
+        { label: '세린이 얼음을 벤다', require: { party: 'serin' }, result: '얼음이 갈라지며 유물이 드러났다.', ops: [{ op: 'relic', rarity: 'rare' }] },
+        { label: '모두 함께 깨뜨린다', result: '손이 꽁꽁 얼었지만 유물을 꺼냈다. (전체 체력 -8%)', ops: [{ op: 'damageAll', pct: 0.08 }, { op: 'relic', rarity: 'any' }] },
+        { label: '포기한다', result: '얼음 속 유물이 아쉽게 반짝였다.', ops: [] },
+      ],
+    },
   ];
 
   // Recruit lines (영입 사건 전용 대사). {name} = candidate name.

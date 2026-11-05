@@ -718,5 +718,99 @@ test('every character skill casts without errors', () => {
   }
 });
 
+
+console.log('Depths');
+test('final battle: bishop boss only from depth 3; depth raises difficulty', () => {
+  const MG = load();
+  for (let d = 1; d <= 5; d++) {
+    const gm = new MG.GameManager();
+    gm.newRun(100 + d);
+    const run = gm.run;
+    run.depth = d;
+    run.map = MG.MapManager.generate(run.rng, { depth: d });
+    const fin = run.map.nodes[run.map.finalId];
+    assert(fin.id.startsWith('d' + d), 'depth-prefixed ids');
+    assert(fin.difficulty === MG.DEPTHS[d - 1].finalDifficulty, 'final difficulty');
+    const plan = MG.WaveManager.planFor(run, fin);
+    const hasBishop = plan.some((w) => w.spawns.some((sp) => sp.enemy === 'thorn_bishop'));
+    assert(hasBishop === d >= 3, `depth ${d} bishop=${hasBishop}`);
+    const first = run.map.nodes[run.map.startIds[0]];
+    assert(first.difficulty === 1 + MG.DEPTHS[d - 1].difficultyOffset, 'start difficulty offset');
+  }
+});
+
+test('clearing a depth final gives rewards and opens the next depth; depth 5 final ends the run', () => {
+  const MG = load();
+  const gm = new MG.GameManager();
+  gm.newRun(120);
+  const run = gm.run;
+  run.relics.push('ember_core');
+  // jump to the final node of depth 1
+  run.currentId = run.map.startIds[0];
+  run.completed.add(run.currentId);
+  const fin = run.map.nodes[run.map.finalId];
+  for (const n of Object.values(run.map.nodes)) if (n.col === fin.col - 1) n.next = [fin.id];
+  run.currentId = Object.values(run.map.nodes).find((n) => n.col === fin.col - 1).id;
+  run.completed.add(run.currentId);
+  gm.selectNode(fin.id);
+  assert(gm.state === 'BATTLE', 'final battle');
+  gm.battle.result = 'victory';
+  gm.update(1 / 60);
+  assert(gm.state === 'REWARD', 'depth 1 final gives a reward: ' + gm.state);
+  const hpBefore = run.party.get('rozel').hp;
+  gm.chooseReward(0);
+  assert(gm.state === 'MAP' && run.depth === 2, 'descended to depth 2');
+  assert(run.map.depth === 2 && run.completed.size === 0 && run.currentId === null, 'fresh map');
+  assert(run.relics.includes('ember_core') && run.relics.length >= 2, 'relics kept');
+  assert(run.stats.depthsCleared === 1, 'depth counted');
+  // depth 5 final ends the run
+  run.depth = 5;
+  run.map = MG.MapManager.generate(run.rng, { depth: 5 });
+  const f5 = run.map.nodes[run.map.finalId];
+  run.currentId = Object.values(run.map.nodes).find((n) => n.col === f5.col - 1).id;
+  run.completed.add(run.currentId);
+  run.map.nodes[run.currentId].next = [f5.id];
+  gm.selectNode(f5.id);
+  gm.battle.result = 'victory';
+  gm.update(1 / 60);
+  assert(gm.state === 'RUN_CLEARED', 'depth 5 clears the run: ' + gm.state);
+});
+
+console.log('Formation / retreat');
+test('retreat to bench, front/back move with an empty slot, cooldown applies', () => {
+  const MG = load();
+  const gm = new MG.GameManager();
+  const b = startBattle(MG, gm, { seed: 130 });
+  const P = b.party;
+  assert(P.retreat('0-back', b).ok, 'retreat ok');
+  assert(P.slots['0-back'] === null && P.bench.includes('luna'), 'luna on bench');
+  assert(!P.retreat('0-front', b).ok, 'cooldown blocks a second retreat');
+  // front -> back in a lane with an empty back slot
+  assert(MG.FormationSystem.swapRows(P, 0, b).ok, 'row swap ok');
+  assert(P.slots['0-back'] === 'rozel' && P.slots['0-front'] === null, 'rozel moved to back');
+  // map (no battle): retreat via swapFree to the end of the bench
+  const gm2 = new MG.GameManager();
+  gm2.newRun(131);
+  const P2 = gm2.run.party;
+  const id = P2.slots['0-front'];
+  P2.swapFree({ type: 'slot', key: '0-front' }, { type: 'bench', index: P2.bench.length });
+  assert(P2.slots['0-front'] === null && P2.bench.includes(id), 'map retreat');
+});
+
+test('relic events grant relics', () => {
+  const MG = load();
+  const gm = new MG.GameManager();
+  gm.newRun(140);
+  const run = gm.run;
+  for (const id of ['forgotten_vault', 'pilgrim', 'three_altars', 'mimic_chest', 'frozen_relic']) assert(MG.EVENTS.some((e) => e.id === id), 'event ' + id);
+  const ev = MG.EVENTS.find((e) => e.id === 'three_altars');
+  const n = run.relics.length;
+  MG.NodeManager.applyOps(run, ev.choices[0].ops, {});
+  assert(run.relics.length === n + 1 && MG.RELICS[run.relics[n]].tags.includes('fire'), 'fire altar gives a fire relic');
+  const ctx = {};
+  MG.NodeManager.applyOps(run, MG.EVENTS.find((e) => e.id === 'forgotten_vault').choices[0].ops, ctx);
+  assert(ctx.followUp && ctx.followUp.kind === 'relic' && ctx.followUp.choices.length === 3, 'vault offers 3 relics');
+});
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

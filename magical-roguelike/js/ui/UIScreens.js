@@ -144,7 +144,7 @@
       const run = this.gm.run;
       $('screen-battle').classList.add('active'); // battlefield stays visible under the overlay
       $('battleHud').style.visibility = 'hidden';
-      $('rewardTitle').textContent = 'NODE CLEAR — 보상 선택';
+      $('rewardTitle').textContent = ctx.node.type === 'final' ? `제 ${run.depth}심도 돌파 — 보상 선택` : 'NODE CLEAR — 보상 선택';
       $('rewardSub').innerHTML = `별조각 <b style="color:var(--gold)">+${ctx.rewards.shards}</b> 획득 · 보상 하나를 선택하세요${
         run.rerollsLeft > 0 ? ` <button class="tb-btn" id="btnReroll">새로고침 (${run.rerollsLeft}회 남음)</button>` : ''
       }`;
@@ -459,8 +459,10 @@
       const st = run.settled || MG.Meta.settle(run, win);
       $('resultTitle').textContent = win ? '탐사 성공' : '탐사 실패';
       $('resultTitle').style.color = win ? '#ffe9f5' : '#ff6b8a';
-      $('resultSub').textContent = win ? `「${MG.RUN_CONFIG.regionName}」를 정화했습니다.` : '마법소녀들은 후퇴했습니다… 월광을 모아 별빛 성소에서 강해지세요.';
-      $('resultStats').innerHTML = `완료한 노드 ${run.stats.nodes} · 전투 승리 ${run.stats.battlesWon} · 처치한 적 ${run.stats.kills} · 강적 ${run.stats.elites}<br>
+      $('resultSub').textContent = win
+        ? `제 ${MG.RUN_CONFIG.maxDepth}심도까지 모두 돌파해 「${MG.RUN_CONFIG.regionName}」를 정화했습니다.`
+        : `제 ${run.depth}심도 「${MG.DEPTHS[run.depth - 1].name}」에서 후퇴했습니다… 월광을 모아 별빛 성소에서 강해지세요.`;
+      $('resultStats').innerHTML = `도달 심도 ${run.depth}/${MG.RUN_CONFIG.maxDepth} · 완료한 노드 ${run.stats.nodes} · 전투 승리 ${run.stats.battlesWon} · 처치한 적 ${run.stats.kills} · 강적 ${run.stats.elites}<br>
         유물 ${run.relics.length}개 · 시너지 ${MG.RelicSystem.synergyStatus(run).filter((s) => s.active).length}개 · 동료 ${run.party.size()}명${run.asc ? ` · ${MG.ASCENSION[run.asc].name}` : ''} <span class="muted-s">(시드 ${run.seed})</span>`;
       $('resultMoon').innerHTML = `<div class="moon-box"><div class="mb-head">월광 획득 <b>+${st.total}</b>${st.mult > 1 ? ` <small>(난이도 ×${st.mult.toFixed(1)})</small>` : ''} · 보유 ${st.moonNow}</div>
         ${st.items.map((it) => `<div class="mb-row"><span>${this.esc(it.label)}</span><b>+${it.v}</b></div>`).join('')}

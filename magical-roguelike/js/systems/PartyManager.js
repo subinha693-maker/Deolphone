@@ -152,6 +152,25 @@
       return { ok: true };
     }
 
+    /** Send a field unit back to the bench without a replacement (uses the swap cooldown in battle). */
+    retreat(key, battle) {
+      const id = this.slots[key];
+      if (!id) return { ok: false, reason: '빈 칸입니다' };
+      if (this.isReserved(key)) return { ok: false, reason: '이동 중인 아군이 도착할 자리입니다' };
+      if (battle) {
+        if (!battle.canAct()) return { ok: false, reason: '지금은 퇴각할 수 없습니다' };
+        if (battle.swapCd > 0) return { ok: false, reason: `교대 대기 ${battle.swapCd.toFixed(1)}초` };
+      }
+      this.slots[key] = null;
+      this.bench.push(id);
+      if (battle) {
+        MG.CombatSystem.resetUnitBattleState(this.units[id], battle, true);
+        battle.swapCd = Math.max(0.5, SWAP_COOLDOWN * MG.RelicSystem.swapCooldownMult(battle.run) - ((battle.run.meta && battle.run.meta.swapCdCut) || 0));
+        battle.bus.emit('retreat', { unit: this.units[id], key });
+      }
+      return { ok: true };
+    }
+
     /** Free re-arrangement outside battle: swap any two slots/bench members. */
     swapFree(aRef, bRef) {
       const get = (r) => (r.type === 'slot' ? this.slots[r.key] : this.bench[r.index]);

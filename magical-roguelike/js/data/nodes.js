@@ -40,7 +40,8 @@
   MG.NODE_REWARDS = {
     battle: { shards: [8, 14], relicChoices: 3, mods: 1, alt: 1, rarity: { common: 66, rare: 22, epic: 2, curse: 10 } },
     elite: { shards: [18, 26], relicChoices: 3, mods: 2, alt: 0, rarity: { common: 15, rare: 55, epic: 18, curse: 12 } },
-    final: { shards: [0, 0], relicChoices: 0 },
+    // final battle of a depth (the last depth ends the run instead of giving rewards)
+    final: { shards: [20, 30], relicChoices: 3, mods: 1, alt: 1, rarity: { common: 20, rare: 60, epic: 12, curse: 8 } },
     relic: { relicChoices: 3, rarity: { common: 45, rare: 35, epic: 8, curse: 12 } },
   };
 
@@ -72,14 +73,36 @@
     { id: 'elite_knight', tier: 3, entries: [{ enemy: 'dark_knight', count: 1, lane: 'rand', interval: 1 }, { enemy: 'skeleton', count: 3, lane: 'both', interval: 1.2, delay: 2 }, { enemy: 'doll', count: 2, lane: 'both', interval: 1.4, delay: 4 }] },
   ];
 
-  MG.FINAL_WAVES = [
-    { id: 'final_guard', tier: 3, entries: [{ enemy: 'skeleton', count: 4, lane: 'both', interval: 1 }, { enemy: 'wraith', count: 2, lane: 'both', interval: 1, delay: 2 }] },
-    { id: 'final_knights', tier: 3, entries: [{ enemy: 'dark_knight', count: 2, lane: 'both', interval: 2 }, { enemy: 'doll', count: 2, lane: 'both', interval: 1.5, delay: 2 }] },
-    { id: 'final_boss', tier: 3, entries: [{ enemy: 'thorn_bishop', count: 1, lane: 0, interval: 1 }, { enemy: 'skeleton', count: 2, lane: 1, interval: 1.5, delay: 1 }] },
-  ];
+  // Final battle of each depth. The 가시관의 주교 boss appears from depth 3.
+  const W = (id, entries) => ({ id, tier: 3, entries });
+  MG.FINAL_WAVES_BY_DEPTH = {
+    1: [
+      W('gate1_guard', [{ enemy: 'skeleton', count: 3, lane: 'both', interval: 1.2 }, { enemy: 'bat', count: 4, lane: 'both', interval: 0.6, delay: 2 }]),
+      W('gate1_keeper', [{ enemy: 'dark_knight', count: 1, lane: 0, interval: 1 }, { enemy: 'skeleton', count: 2, lane: 1, interval: 1.4, delay: 1 }, { enemy: 'doll', count: 1, lane: 'rand', interval: 1, delay: 4 }]),
+    ],
+    2: [
+      W('gate2_guard', [{ enemy: 'skeleton', count: 3, lane: 'both', interval: 1 }, { enemy: 'wraith', count: 2, lane: 'both', interval: 1, delay: 2 }]),
+      W('gate2_keeper', [{ enemy: 'dark_knight', count: 2, lane: 'both', interval: 2 }, { enemy: 'doll', count: 2, lane: 'both', interval: 1.5, delay: 2 }]),
+    ],
+    3: [
+      W('final_guard', [{ enemy: 'skeleton', count: 4, lane: 'both', interval: 1 }, { enemy: 'wraith', count: 2, lane: 'both', interval: 1, delay: 2 }]),
+      W('final_knights', [{ enemy: 'dark_knight', count: 2, lane: 'both', interval: 2 }, { enemy: 'doll', count: 2, lane: 'both', interval: 1.5, delay: 2 }]),
+      W('final_boss', [{ enemy: 'thorn_bishop', count: 1, lane: 0, interval: 1 }, { enemy: 'skeleton', count: 2, lane: 1, interval: 1.5, delay: 1 }]),
+    ],
+    4: [
+      W('final_guard', [{ enemy: 'skeleton', count: 4, lane: 'both', interval: 1 }, { enemy: 'wraith', count: 3, lane: 'both', interval: 1, delay: 2 }]),
+      W('final_knights', [{ enemy: 'dark_knight', count: 2, lane: 'both', interval: 2 }, { enemy: 'doll', count: 3, lane: 'both', interval: 1.4, delay: 2 }]),
+      W('final_boss', [{ enemy: 'thorn_bishop', count: 1, lane: 0, interval: 1 }, { enemy: 'dark_knight', count: 1, lane: 1, interval: 1, delay: 2 }, { enemy: 'skeleton', count: 2, lane: 1, interval: 1.5, delay: 4 }]),
+    ],
+    5: [
+      W('abyss_guard', [{ enemy: 'wraith', count: 4, lane: 'both', interval: 0.9 }, { enemy: 'doll', count: 2, lane: 'both', interval: 1.3, delay: 2 }]),
+      W('abyss_knights', [{ enemy: 'dark_knight', count: 3, lane: 'both', interval: 1.8 }, { enemy: 'bat', count: 6, lane: 'both', interval: 0.5, delay: 2 }]),
+      W('abyss_boss', [{ enemy: 'thorn_bishop', count: 1, lane: 0, interval: 1 }, { enemy: 'thorn_bishop', count: 1, lane: 1, interval: 1, delay: 6 }, { enemy: 'dark_knight', count: 2, lane: 'both', interval: 2, delay: 3 }]),
+    ],
+  };
+  MG.FINAL_WAVES = MG.FINAL_WAVES_BY_DEPTH[3]; // kept for older references
 
-  // How many waves a node has, by type
-  MG.WAVE_COUNT = { battle: [2, 3], elite: [2, 2], final: [3, 3] };
+  MG.WAVE_COUNT = { battle: [2, 3], elite: [2, 2] };
 
   // Enemy stat scaling by node difficulty (1..6)
   MG.DIFFICULTY_SCALING = { hpPerLevel: 0.2, atkPerLevel: 0.12 };

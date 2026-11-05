@@ -117,7 +117,10 @@
     buildWaves(node, rng, run) {
       const asc = (run && run.asc) || 0;
       let templates;
-      if (node.type === 'final') templates = MG.FINAL_WAVES.slice();
+      if (node.type === 'final') {
+        const d = Math.max(1, Math.min(5, node.depth || (run && run.depth) || 1));
+        templates = MG.FINAL_WAVES_BY_DEPTH[d].slice();
+      }
       else {
         const [lo, hi] = MG.WAVE_COUNT[node.type] || [2, 3];
         const n = rng.int(lo, hi);
