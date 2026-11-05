@@ -107,9 +107,10 @@
 
     bindStatic() {
       $('btnCloseDrawer').onclick = () => $('relicDrawer').classList.add('hidden');
-      document.addEventListener('mousemove', (e) => this.moveTip(e));
+      document.addEventListener('mousemove', (e) => !this.touchMode && this.moveTip(e));
       document.addEventListener('keydown', (e) => this.onKey(e));
       document.addEventListener('mouseover', (e) => {
+        if (this.touchMode) return; // touch: tooltips come from long-press instead
         const el = e.target.closest('[data-tip]');
         if (el) this.showTip(el.getAttribute('data-tip'), e);
         else this.hideTip();
@@ -119,6 +120,113 @@
         if (MG.Audio) MG.Audio.unlock();
         if (e.target.closest('button, .rcard, .node.selectable, .pcard, .ucard, .shop-card, .char-card')) MG.Audio && MG.Audio.play('ui_click');
       });
+      this.bindTouch();
+    }
+
+    /**
+     * Touch / pen input (iPad etc.).
+     * iOS Safari only synthesises a click if the page shows no "content change" right after the
+     * touch. The battle HUD updates constantly and many cards open a tooltip on hover, so taps
+     * were often swallowed. Here a finger tap calls the element's handler directly on pointerup
+     * and the late synthetic click is dropped. A long press shows the tooltip instead of hover.
+     */
+    bindTouch() {
+      const SKIP = 'input, select, textarea, label, option';
+      let start = null;
+      let suppressClickUntil = 0;
+      let pressTimer = null;
+      let longPressed = false;
+      document.addEventListener(
+        'pointerdown',
+        (e) => {
+          if (e.pointerType === 'mouse') {
+            this.touchMode = false;
+            return;
+          }
+          this.touchMode = true;
+          start = { x: e.clientX, y: e.clientY, id: e.pointerId };
+          longPressed = false;
+          clearTimeout(pressTimer);
+          const tipEl = e.target.closest('[data-tip]');
+          if (tipEl) {
+            pressTimer = setTimeout(() => {
+              longPressed = true;
+              this.showTip(tipEl.getAttribute('data-tip'), { clientX: start.x, clientY: start.y });
+            }, 450);
+          } else this.hideTip();
+        },
+        true
+      );
+      document.addEventListener(
+        'pointermove',
+        (e) => {
+          if (!start || e.pointerId !== start.id) return;
+          if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > 12) {
+            clearTimeout(pressTimer);
+            start.moved = true;
+          }
+        },
+        true
+      );
+      document.addEventListener(
+        'pointerup',
+        (e) => {
+          if (e.pointerType === 'mouse' || !start || e.pointerId !== start.id) return;
+          clearTimeout(pressTimer);
+          const s = start;
+          start = null;
+          suppressClickUntil = performance.now() + 700;
+          if (longPressed) {
+            clearTimeout(this._tipHideT);
+            this._tipHideT = setTimeout(() => this.hideTip(), 2200);
+            return; // a long press only shows the tooltip
+          }
+          this.hideTip();
+          if (s.moved || e.target.closest(SKIP)) {
+            if (e.target.closest(SKIP)) suppressClickUntil = 0; // let native controls work
+            return;
+          }
+          // nearest element with a handler (inner buttons win over their card)
+          let el = e.target;
+          while (el && el !== document.body && typeof el.onclick !== 'function') el = el.parentElement;
+          if (!el || el === document.body || el.disabled) return;
+          e.preventDefault();
+          el.onclick({ target: e.target, currentTarget: el, preventDefault() {}, stopPropagation() {} });
+        },
+        true
+      );
+      document.addEventListener(
+        'pointercancel',
+        () => {
+          clearTimeout(pressTimer);
+          start = null;
+        },
+        true
+      );
+      // drop the synthetic click that follows a handled tap
+      document.addEventListener(
+        'click',
+        (e) => {
+          if (performance.now() < suppressClickUntil && !e.target.closest(SKIP)) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        },
+        true
+      );
+    }
+
+    /** Write HTML / text only when it changed (keeps touch targets stable, avoids iOS hover traps). */
+    setHtml(el, html) {
+      if (el && el._html !== html) {
+        el._html = html;
+        el.innerHTML = html;
+        return true;
+      }
+      return false;
+    }
+    setText(el, text) {
+      if (el && el.textContent !== text) el.textContent = text;
     }
 
     onKey(e) {
@@ -215,11 +323,11 @@
       return `<div class="res life" data-tip="<h4>공유 생명</h4>방어전에서 적이 홈 포인트에 도달하면 감소합니다. 0이 되면 탐사 실패."><span class="ic">♥</span><b>${run.life}</b><small>/${run.maxLife}</small></div>
         <div class="res shard" data-tip="<h4>별조각</h4>탐사 자원. 사건과 상점에서 사용합니다."><span class="ic">✦</span><b>${run.shards}</b></div>
         <div class="res" data-tip="<h4>물약</h4>탐사 맵의 파티 카드에서 아군 체력 ${Math.round((MG.RUN_CONFIG.potionHealPct + (run.meta.potionBonus || 0)) * 100)}% 회복."><span class="ic">⚱</span><b>${run.potions}</b></div>
-        <button class="tb-btn" id="btnRelics">유물 ${run.relics.length} · 시너지 ${MG.RelicSystem.synergyStatus(run).filter((s) => s.active).length}</button>`;
+        <button class="tb-btn btn-relics">유물 ${run.relics.length} · 시너지 ${MG.RelicSystem.synergyStatus(run).filter((s) => s.active).length}</button>`;
     }
     bindRelicButton() {
-      const b = $('btnRelics');
-      if (b) b.onclick = () => this.toggleDrawer();
+      // several screens render this button (map, battle, shop) — bind every instance
+      document.querySelectorAll('.btn-relics').forEach((b) => (b.onclick = () => this.toggleDrawer()));
     }
     toggleDrawer() {
       const d = $('relicDrawer');
@@ -503,13 +611,15 @@
       this.lastHud = now;
       const run = gm.run;
 
-      $('wavePips').innerHTML =
-        'WAVE ' + b.waves.map((w, i) => `<i class="${i < b.waveIndex || (i === b.waveIndex && ['waveClear', 'nodeClear', 'done'].includes(b.phase)) ? 'done' : i === b.waveIndex ? 'now' : ''}"></i>`).join('');
-      $('phaseLabel').textContent = { advance: '▶ 전진 중', combat: '⚔ 전투 중', waveClear: '✔ 웨이브 클리어', nodeClear: '✦ 노드 완료', defeat: '✗ 패배', done: '' }[b.phase];
-      $('battleRes').innerHTML = this.resourcesHtml();
-      this.bindRelicButton();
+      this.setHtml(
+        $('wavePips'),
+        'WAVE ' + b.waves.map((w, i) => `<i class="${i < b.waveIndex || (i === b.waveIndex && ['waveClear', 'nodeClear', 'done'].includes(b.phase)) ? 'done' : i === b.waveIndex ? 'now' : ''}"></i>`).join('')
+      );
+      this.setText($('phaseLabel'), { advance: '▶ 전진 중', combat: '⚔ 전투 중', waveClear: '✔ 웨이브 클리어', nodeClear: '✦ 노드 완료', defeat: '✗ 패배', done: '' }[b.phase]);
+      if (this.setHtml($('battleRes'), this.resourcesHtml())) this.bindRelicButton();
       $('btnPause').classList.toggle('on', gm.paused);
-      $('btnSpeed').textContent = `속도 ×${gm.speed}`;
+      this.setText($('btnPause'), gm.paused ? '재개' : '일시정지');
+      this.setText($('btnSpeed'), `속도 ×${gm.speed}`);
       $('pauseOverlay').classList.toggle('hidden', !gm.paused);
 
       const sig = run.relics.join(',');
@@ -533,13 +643,16 @@
       for (const l of [0, 1]) {
         const th = MG.LaneManager.threat(b, l);
         const el = $('laneTag' + l);
-        el.className = 'lane-tag ' + th.level;
+        if (el.className !== 'lane-tag ' + th.level) el.className = 'lane-tag ' + th.level;
         const lvTxt = { safe: '안정', warn: '교전', danger: '위험' }[th.level];
-        const near = th.nearest === Infinity ? '-' : Math.max(0, Math.round(th.nearest));
-        const meter = th.nearest === Infinity ? 0 : Math.max(0, Math.min(100, 100 - th.nearest / 9));
-        el.innerHTML = `<span class="lv">${lvTxt}</span>${MG.LaneManager.LANE_NAMES[l]}<br>
+        const near = th.nearest === Infinity ? '-' : Math.max(0, Math.round(th.nearest / 10) * 10);
+        const meter = th.nearest === Infinity ? 0 : Math.max(0, Math.min(100, Math.round(100 - th.nearest / 9)));
+        this.setHtml(
+          el,
+          `<span class="lv">${lvTxt}</span>${MG.LaneManager.LANE_NAMES[l]}<br>
           적 ${th.count}${th.pending ? ` <span style="color:var(--warn)">(+${th.pending} 접근 중)</span>` : ''} · 거리 ${near}${th.empty ? ` · <span style="color:var(--danger)">${b.defense ? '무방비!' : '비어 있음'}</span>` : ''}
-          <div class="lane-meter"><i style="width:${meter}%"></i></div>`;
+          <div class="lane-meter"><i style="width:${meter}%"></i></div>`
+        );
       }
 
       this.renderNextPanel(b);
@@ -615,7 +728,7 @@
         hp.style.width = pct + '%';
         hp.className = pct < 35 ? 'low' : '';
         document.querySelector(`[data-sh="${u.id}"]`).style.width = Math.min(100, ((u.b ? u.b.shield : 0) / u.maxHp) * 100) + '%';
-        document.querySelector(`[data-hpt="${u.id}"]`).textContent = `${Math.ceil(u.hp)} / ${u.maxHp}${u.b && u.b.shield > 0 ? `  (+${Math.round(u.b.shield)})` : ''}`;
+        this.setText(document.querySelector(`[data-hpt="${u.id}"]`), `${Math.ceil(u.hp)} / ${u.maxHp}${u.b && u.b.shield > 0 ? `  (+${Math.round(u.b.shield)})` : ''}`);
         const cd = document.querySelector(`[data-cd="${u.id}"]`);
         const btn = document.querySelector(`[data-skill="${u.id}"]`);
         const frac = (u.skillCd || 0) / MG.SkillSystem.effective(u).cooldown;
@@ -670,7 +783,7 @@
       const P = b.party;
       const sig = P.bench.join(',') + '|' + P.bench.map((id) => P.get(id).hp > 0).join(',') + '|' + JSON.stringify(this.sel);
       const tag = b.tagWindow.find((t) => t.until > b.time);
-      const cdTxt = b.swapCd > 0 ? `교대 대기 ${b.swapCd.toFixed(1)}초` : '교대 가능';
+      const cdTxt = b.swapCd > 0 ? `교대 대기 ${Math.ceil(b.swapCd)}초` : '교대 가능';
       if (sig !== this.benchSig) {
         this.benchSig = sig;
         let html = `<div class="bench-head"><span>대기열</span><span id="swapCd"></span></div><div class="bench-list">`;
@@ -703,7 +816,7 @@
         const u = P.get(id);
         if (c) c.style.width = (u.hp / u.maxHp) * 100 + '%';
       });
-      $('swapCd').innerHTML = tag ? `<span style="color:#7fd8ff">연계 교대 가능 (${LANE_LABEL[tag.lane]})</span>` : cdTxt;
+      this.setHtml($('swapCd'), tag ? `<span style="color:#7fd8ff">연계 교대 가능 (${LANE_LABEL[tag.lane]})</span>` : cdTxt);
     }
   }
 
