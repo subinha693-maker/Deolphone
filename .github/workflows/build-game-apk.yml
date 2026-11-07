@@ -1,0 +1,64 @@
+name: Build Whitespace30 APK
+
+# whitespace-game 브랜치에 올릴 때마다 APK 를 만들어 'whitespace-latest' 릴리스에 올린다.
+# (덜폰의 main 브랜치 · 'latest' 릴리스와는 따로 움직인다)
+on:
+  push:
+    branches: [whitespace-game]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # 서명 키: 저장소 설정 → Secrets 의 WS_KEYSTORE_B64(키 파일 base64) · WS_KEY_PASSWORD 가 있으면 사용
+      - name: Restore signing key
+        env:
+          WS_KEYSTORE_B64: ${{ secrets.WS_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$WS_KEYSTORE_B64" ]; then mkdir -p app/signing && echo "$WS_KEYSTORE_B64" | base64 -d > app/signing/ws30.jks; echo "signing key restored"; else echo "no signing secret: temporary key"; fi
+
+      - name: Build APK
+        env:
+          WS_KEY_PASSWORD: ${{ secrets.WS_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          set -o pipefail
+          ./gradlew assembleRelease --stacktrace 2>&1 | tee build.log
+
+      # 실패하면 오류 기록을 whitespace-build-log 브랜치에 저장 (고치기 위해)
+      - name: Save build log on failure
+        if: failure()
+        run: |
+          cp build.log /tmp/build.log || echo "no log" > /tmp/build.log
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git checkout --orphan whitespace-build-log
+          git rm -rf -q . || true
+          cp /tmp/build.log build.log
+          git add build.log
+          git commit -q -m "build log ${{ github.sha }}"
+          git push -f origin whitespace-build-log
+
+      # 폰에서 로그인 없이 바로 받을 수 있게 릴리스에 APK 를 올린다
+      - name: Publish APK to Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk Whitespace30.apk
+          gh release delete whitespace-latest --yes --cleanup-tag || true
+          gh release create whitespace-latest Whitespace30.apk --target "${{ github.sha }}" --latest=false \
+            --title "흰 공간 30일 APK" \
+            --notes "처음 한 번만 설치하면 됩니다. 이후 게임 업데이트는 앱을 켤 때 자동으로 받아 적용합니다. (빌드 ${{ github.run_number }})"

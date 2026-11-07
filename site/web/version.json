@@ -1,0 +1,622 @@
+{
+"version": "20261107131958",
+"notes": "첫 버전: 흰 공간 30일 안드로이드 앱",
+"files": {
+"index.html": {
+"h": "e7a09d84010849d97c7afeabdb046ddccb663125b6a3f1b44a6d6e0513cfc96b",
+"s": 3857300
+},
+"rpg/assets/audio/amb_forest_day.mp3": {
+"h": "188cd241c3ec18332d4155a838901f498db8af53dcb3b5829e35b5c504462f80",
+"s": 600600
+},
+"rpg/assets/audio/amb_sea.mp3": {
+"h": "7c2cb9e6f5eaec3f8395f6d7cb87dd4cc6661694b53b3930eccc7f87bea1da83",
+"s": 600600
+},
+"rpg/assets/audio/bgm_battle.mp3": {
+"h": "7d6ae28d4b9f7aafa61713be581f755c054330f9452fef7ad954198169ade85d",
+"s": 2514921
+},
+"rpg/assets/audio/bgm_boss.mp3": {
+"h": "fb07999d77138687b394b0ad7e36e1191b6121c6fb6d48c87aeb6a7636f54054",
+"s": 3261003
+},
+"rpg/assets/audio/bgm_cave.mp3": {
+"h": "30cb6b3f882f35a8c0d0a94aef2c709a75c712639cefffc14eb5812b688425a4",
+"s": 2791088
+},
+"rpg/assets/audio/bgm_field.mp3": {
+"h": "249c875e56b8936555324378c1da2640dd7366c7215f4d895448d58d90bbe46d",
+"s": 2521202
+},
+"rpg/assets/audio/bgm_forest.mp3": {
+"h": "b5968f1e0d06f21bd993c9870bb48eea8e6b7604624cbb19577043e83aaf3be2",
+"s": 3217092
+},
+"rpg/assets/audio/bgm_kingdom.mp3": {
+"h": "2ebecc05282d6ac5840b96b8f3c12aa532dbdf5c7a614f07f8ae9ed709d87711",
+"s": 2240960
+},
+"rpg/assets/audio/bgm_shrine.mp3": {
+"h": "52052070bf032121278f5426f009b336f1125b162239bd60c8efd06d9300c98d",
+"s": 3492944
+},
+"rpg/assets/audio/bgm_title.mp3": {
+"h": "4be0b3dba9fceca47e568ffe2b349d2480ee9befd5fad77c8a5d86b7b0146f18",
+"s": 1594891
+},
+"rpg/assets/audio/bgm_town.mp3": {
+"h": "b1198c26ebd4e4caba41732a93878245c507bc0e49470b958f5fc7d6210d320e",
+"s": 3096105
+},
+"rpg/assets/audio/me_night.mp3": {
+"h": "310346e0be9cd2cd73446b61548d05d116930e00ab149c5297059f1c864e24a6",
+"s": 134756
+},
+"rpg/assets/audio/me_victory.mp3": {
+"h": "6c7e3d0faee7643e3ed278a720a6855d244a100b7203611afb900911c9b3902a",
+"s": 1381101
+},
+"rpg/assets/audio/se_chest_open_1.mp3": {
+"h": "6a50231e4a843dbed2de025dae96e0c7d5006ee80e6f19c6e60c50cddfe579ff",
+"s": 12582
+},
+"rpg/assets/audio/se_door_open_1.mp3": {
+"h": "f9f92445ed898cd2e37a85c2fe0cacaca73afb32cfa36a7ac205188a183fd550",
+"s": 12582
+},
+"rpg/assets/audio/se_fireball_1.mp3": {
+"h": "9258c355f74edf06ea809d0fd0328907e78b3c6e5b82458fe17876192c31c93c",
+"s": 10284
+},
+"rpg/assets/audio/se_firebuff_1.mp3": {
+"h": "338424e5635fe9b9472cfb56360434c5ba72707c4d2cb184d25f3e0b3e81c1cd",
+"s": 12164
+},
+"rpg/assets/audio/se_ice_barrage_1.mp3": {
+"h": "bb833466361b8ab4d06ca819f77080418680a24509ce060d3a67a8df909c7f55",
+"s": 17180
+},
+"rpg/assets/audio/se_ice_freeze_1.mp3": {
+"h": "02e8bd0c00a2e60779cca2701b91016311e8e51966f7ccfebaec08d68bfa2376",
+"s": 7149
+},
+"rpg/assets/audio/se_spell_impact_1.mp3": {
+"h": "523b5781eaeec7688833a05c285c8fc048025db0934ea44171681661d52355c3",
+"s": 3596
+},
+"rpg/assets/audio/se_sword_attack_1.mp3": {
+"h": "4c17cf3380a3aee54e41fdda68e58191b202c133e3493d8f5a64934a26b3aa77",
+"s": 4641
+},
+"rpg/assets/audio/se_sword_attack_2.mp3": {
+"h": "eee8da0e4c7718608d26f661b8b42d37e0b505c961968a1c98c77caeb65c2881",
+"s": 4641
+},
+"rpg/assets/audio/se_sword_attack_3.mp3": {
+"h": "788925b558bc4df847a69c1109c0e1b30913ee8671cd3cbe1aad1667495a1517",
+"s": 4641
+},
+"rpg/assets/audio/se_sword_blocked_1.mp3": {
+"h": "fa293f7b56374c1c8e28a33ad6e90f555e392b8149f005061075eebe9ea64065",
+"s": 4641
+},
+"rpg/assets/audio/se_sword_blocked_2.mp3": {
+"h": "14f4a2867aa427e6c2adeed14b8265ef42eb9a20242f316383d424565deaa50f",
+"s": 4641
+},
+"rpg/assets/audio/se_sword_impact_hit_1.mp3": {
+"h": "e953c564db3486cbe12b1fe019d779ddca447ec8d973033c0b79481ec0ca4c55",
+"s": 4641
+},
+"rpg/assets/audio/se_sword_impact_hit_2.mp3": {
+"h": "17a6ddd6ccc4c8e226c0cb09da8c61826e0545a3ef9604794a8606c402897a52",
+"s": 4641
+},
+"rpg/assets/audio/se_sword_impact_hit_3.mp3": {
+"h": "38cb6549a1975f6f48acd30b0aa4746c4216d5a0be76fc9c01bca2330925ad59",
+"s": 4641
+},
+"rpg/assets/chars/Character_Idle.png": {
+"h": "a821f8a79b16770dd2202570cb0f1fb8a459501e3caa4a3435145304db4c4503",
+"s": 5058
+},
+"rpg/assets/chars/Character_Slash.png": {
+"h": "c8d2de9c79649ba4dfc7c54e669820baabe3bae69be7535f29137e90d96f8ce4",
+"s": 8452
+},
+"rpg/assets/chars/Character_Walk.png": {
+"h": "efdfe9f5304d1bd812460a372820d8fef7db84562115182810721fcaba2bda7d",
+"s": 7290
+},
+"rpg/assets/chars/npc1.png": {
+"h": "f87b6320be5af57b7690fc4617fedca29899a2f418546844ef4abe77e808b1e4",
+"s": 19366
+},
+"rpg/assets/chars/npc2.png": {
+"h": "112d647f7fcb86271c7f3ff8e7fce5494e013aa3a1c6994358cd2b51fb798e44",
+"s": 18902
+},
+"rpg/assets/chars/npc3.png": {
+"h": "ca8a827937090c38d81c62a4d1caeb83b44ad4d72a289913d8a744761bbc7a33",
+"s": 19620
+},
+"rpg/assets/chars/npc4.png": {
+"h": "cec207805ac2d959bb8520b8a77f3e64e5b7b5e72d9470901cd5d4709edae5f6",
+"s": 14664
+},
+"rpg/assets/mon/Ancient_Priestess.png": {
+"h": "41742305ca6fd97b05f4af6f851e0eda00858f5e38e73eca0dea73258cb397cb",
+"s": 2554
+},
+"rpg/assets/mon/AphroditePR.png": {
+"h": "13bd642bc2cc17f81db81f4c8c5896f6df747f8e6c8c2dab25240c8884a49fbc",
+"s": 2273
+},
+"rpg/assets/mon/BigMonster10.png": {
+"h": "267cd3a03b57c7dedf04d9dd5634065c09a6f999fefd9b18d335aa58203bef74",
+"s": 13613
+},
+"rpg/assets/mon/BigMonster11.png": {
+"h": "c5f260c9f5a33d19a987a9cb3fd9dafe8f824289dae46f680b0a07bdbca0d5e2",
+"s": 16202
+},
+"rpg/assets/mon/BigMonster12.png": {
+"h": "ae8941d9d8e3578e2f1a634278f9115be38453ce49265615bdda8da3757229d3",
+"s": 13181
+},
+"rpg/assets/mon/BigMonster13.png": {
+"h": "1a0febd67464c81ece077c16006fb21de87b7251fc22ecd2687a2883d8e9d5c5",
+"s": 24287
+},
+"rpg/assets/mon/BigMonster3.png": {
+"h": "5d6332aa8535b4a44c84ebbc0965b4951771c68b8ee4c357601485f555a49d61",
+"s": 4362
+},
+"rpg/assets/mon/BigMonster4.png": {
+"h": "73805b4c35d75713ecfce6139cd6a70d8a0d2b527fbf82b164a47f5bb4b795e7",
+"s": 18236
+},
+"rpg/assets/mon/BigMonster5.png": {
+"h": "40e85d2412c95bb4fbb0c8a2c21723658c24874237c2a7fd7eb21b603747df18",
+"s": 18343
+},
+"rpg/assets/mon/BigMonster6.png": {
+"h": "f9b531f0d1374bcb2e26d8ec91b39a9aab8588859114ac23391f4a90356d75c1",
+"s": 20954
+},
+"rpg/assets/mon/BigMonster7.png": {
+"h": "f04a185b81d304f462d3900c5e7e4272f619435c122daeeda312bf8ae6ad975b",
+"s": 16381
+},
+"rpg/assets/mon/BigMonster8.png": {
+"h": "8bbbd2e409c9e7013051876983cf3bc120ae0de6cbf9edf1afd5a1b760536e27",
+"s": 20508
+},
+"rpg/assets/mon/BigMonster9.png": {
+"h": "4a105195b07304959e3998f2cd2ad2a715f1d011e126f2e4e0a74bcc0136ecc7",
+"s": 20212
+},
+"rpg/assets/mon/Big_Monster14.png": {
+"h": "a17f712cbad7313bf7ff33d2533992a36c33332ffb4b013cd0a648a8324d0fbb",
+"s": 25309
+},
+"rpg/assets/mon/Big_Monster15.png": {
+"h": "3451befd6439fbd39bc39c10bbb5bda69baca905d9cd79f0b0df7d1b81a158e7",
+"s": 27558
+},
+"rpg/assets/mon/Big_Monster16.png": {
+"h": "7d3c766eefc0d81c3ef2ce4cc81c6ea985c5123df81831f913c394eab03bdcca",
+"s": 20225
+},
+"rpg/assets/mon/Big_Monster17.png": {
+"h": "a3bb93997a567af6b019838c9246a895da147adc4b2066af763eeec4e4c23342",
+"s": 16320
+},
+"rpg/assets/mon/Big_Monster18.png": {
+"h": "6b5308b4b16f48966d53935ea29d140a494f5d8d96fabad5b28f4eb491e51793",
+"s": 7493
+},
+"rpg/assets/mon/Big_Monster19.png": {
+"h": "cff0a4803a489049a1b841e8a1ea1b5ac72b1254aa9948936f8ff142e5b7f57b",
+"s": 23374
+},
+"rpg/assets/mon/Big_Monster20.png": {
+"h": "db86d960d797855daf7033b67c57e796d79ed1968feea3b143ff2c22801b337d",
+"s": 21292
+},
+"rpg/assets/mon/Big_Monster21.png": {
+"h": "8d81d6070266300a08fb6617fe86b339205926f2405f66cc57a5f7b0628a995c",
+"s": 23029
+},
+"rpg/assets/mon/Big_Monster22.png": {
+"h": "a3dd6f451fd43e0a0c511a4629d9b8b28d396b9ce5ffa62dee8449a04f319a48",
+"s": 7123
+},
+"rpg/assets/mon/DarkQueenShaccad.png": {
+"h": "520d28cef3048d4688fcb70521a5eaec07e36b34339349bffb5e186eb586eba0",
+"s": 3677
+},
+"rpg/assets/mon/Demeres.png": {
+"h": "9d2a6abfd9bc79964d81946b9d0d5eef8d2c20d41a35a69677c715755039c22a",
+"s": 7923
+},
+"rpg/assets/mon/Dynamo.png": {
+"h": "baf84e137168cc0087adb1e3ddcae6d205dcee278bea80823123dba93f6744ae",
+"s": 6916
+},
+"rpg/assets/mon/Goken.png": {
+"h": "49d12ad48d60e023416cbd410c8d8fee7ab25b7eea3fc4ab1eb04f07d48a85da",
+"s": 2998
+},
+"rpg/assets/mon/Grunt.png": {
+"h": "1bfcb9f5ed3d562a82ff63512150ce1fc8abb4e5e5c8b4f8054199f6ffdf08fb",
+"s": 1961
+},
+"rpg/assets/mon/HuangLong.png": {
+"h": "8edc77ec2df7c1bba87e2acfcbf9dcd585964b7edeaec6b8719cfde4b7d4cb7f",
+"s": 9313
+},
+"rpg/assets/mon/KingsA.png": {
+"h": "01ab9ca8792d4c83baf22e3d158d4f51b5c7bb559052e2a27ecc7baa733a8648",
+"s": 7453
+},
+"rpg/assets/mon/LKnightMichael.png": {
+"h": "eaa5fa8904ef0c06f456d2674e3b1c9eb436fbe5019f1c568eac5d9223b98b7d",
+"s": 3000
+},
+"rpg/assets/mon/LegendaryKnightRemmentPR.png": {
+"h": "b0be6f20dc2991d618a8d393170e362d957fa98bd5eb2aa2edb0ecb65081eea8",
+"s": 2411
+},
+"rpg/assets/mon/Leviathan.png": {
+"h": "3fa94c93baf808459991ac417a1b672e53551f77d287801b2d3c111e3b3038da",
+"s": 9380
+},
+"rpg/assets/mon/MknightGoldnharl.png": {
+"h": "15d78a21a0433265f6209a07ac8d284dc02d229cbd3b85f750e71fb2fac274fd",
+"s": 1649
+},
+"rpg/assets/mon/ShaccadYogg.png": {
+"h": "985097cfafe05f5b69b2b7f17334973a52d266a21133d7c1eb24274d367a9778",
+"s": 15162
+},
+"rpg/assets/mon/Skoll.png": {
+"h": "da282298c038077332d207ffcfb2914e8dd09bd49527a8e083156d0380407a5c",
+"s": 2152
+},
+"rpg/assets/mon/Skor.png": {
+"h": "8b06cc56ac0305a4ad4e865e0735b3ee6af7e4e877cef11ccbc2926ca18b5bcc",
+"s": 2519
+},
+"rpg/assets/mon/SkullKnightXoer.png": {
+"h": "7404c3d2f901b2f07090a8c90cca3b4c519e58a70f637730e5e4aa9896b37d04",
+"s": 4843
+},
+"rpg/assets/mon/UrmicaR.png": {
+"h": "97af099483ac84d89be12de7a709b55a450388ce37bcde46f6cf4a7ffb5fe1b8",
+"s": 8275
+},
+"rpg/assets/mon/VoidGargoyleIo.png": {
+"h": "1509d129191b54f8946a445797f9ca79e8e8c825944246dce589d86c4d05fb6f",
+"s": 6104
+},
+"rpg/assets/mon/Ygg.png": {
+"h": "ee10fc88ab36aadbb98a05d58ac56537a0b93bb93f396210e56047f7900114fe",
+"s": 2405
+},
+"rpg/assets/mon/ZodiacCancer.png": {
+"h": "9005d1430081616ee542f66cd42c48a635d6f01916db3118fe9934205cfa433f",
+"s": 5081
+},
+"rpg/assets/obj/Animation_Campfire.png": {
+"h": "4d245c467410f040f673ec0bf2be4bb2c6f549e6799a381bfc4c698de1e55022",
+"s": 3011
+},
+"rpg/assets/obj/Banner_Stick_1_Purple.png": {
+"h": "8e1121ab91f6e047566acbce7f6925cdda7a1b606038b7015f529bc1cace156c",
+"s": 2338
+},
+"rpg/assets/obj/Barrel_Small_Empty.png": {
+"h": "32b7532184bd0064f966d24f5b225df10ca95c8126ccb137526da70a4ad8f626",
+"s": 1950
+},
+"rpg/assets/obj/Basket_Empty.png": {
+"h": "56882ade70813e847052e821f76fbe0b765d46ca4dc01e056c34b6c8015976ca",
+"s": 2152
+},
+"rpg/assets/obj/Bench_1.png": {
+"h": "fc556eed7aaa57dc6385fe2dcc58438f7ec3c2d2007ab1fa0acb556aa1c2e1e6",
+"s": 2023
+},
+"rpg/assets/obj/Bench_3.png": {
+"h": "6f5c90133e72c9d4e75dc51b7d312873c139749270f4bdf3c9aef5b0b39b82a6",
+"s": 1995
+},
+"rpg/assets/obj/BulletinBoard_1.png": {
+"h": "64739e6ed7775dd8933ed85a620cbd2d4bf19b11bc931be3e4a9ba9fffec1c41",
+"s": 2329
+},
+"rpg/assets/obj/Bush_Emerald_1.png": {
+"h": "a796be2bd82bf06c10d5e68aacd8b4e524f0b5f009f790014c883efbfd44c01d",
+"s": 1772
+},
+"rpg/assets/obj/Bush_Emerald_2.png": {
+"h": "9fccf2fc46734d81a1b0292c86a7d75fddba7c295138a1ab89e25386edb63284",
+"s": 1659
+},
+"rpg/assets/obj/Bush_Emerald_3.png": {
+"h": "05075bf4e3e6cf24145fb6e64dc1b4e03bad54079cb25dae0fda3e933d0d1c70",
+"s": 1652
+},
+"rpg/assets/obj/Bush_Emerald_4.png": {
+"h": "515c8086e00d9becaa14ff857a4b55d96e4a20dab9e6eb3adc30a03e2573f229",
+"s": 1578
+},
+"rpg/assets/obj/Bush_Emerald_5.png": {
+"h": "7508a7c2c05c23e58e74df1c040b17f3acaa7876e6b8b959198850fa785209ae",
+"s": 1506
+},
+"rpg/assets/obj/Bush_Emerald_6.png": {
+"h": "a80c98e3ca311fb5508deaa5c136bf846055ee8ef039cd6420e0d77df3e624cf",
+"s": 1484
+},
+"rpg/assets/obj/Bush_Emerald_7.png": {
+"h": "3a685449728545138e976d4cc3c50d5d61fa8a6da19d0941fa7d9c94c2e16ad8",
+"s": 1468
+},
+"rpg/assets/obj/Chopped_Tree_1.png": {
+"h": "1c8028355feb533f321f6fad1cde7e87057fc52f15ade352bee82eed107b87d6",
+"s": 2318
+},
+"rpg/assets/obj/CityWall_Gate_1.png": {
+"h": "b2744666259b487fecf9a38f5121de6ecc69e282e8cdb78cb3c7090ee8a1e164",
+"s": 2102
+},
+"rpg/assets/obj/Crate_Large_Empty.png": {
+"h": "81ed76f86316709b4e815e547178468462b626bf741cf02df314c920aa391649",
+"s": 2069
+},
+"rpg/assets/obj/Crate_Medium_Closed.png": {
+"h": "3302116488a3d293b34caf40bde3514756341a11ac28198c102f20f09b56bea4",
+"s": 2264
+},
+"rpg/assets/obj/Crate_Water_1.png": {
+"h": "da82a1093833da84d0abe803894ae1672ddb534203f06c428bb069f4c8b3596d",
+"s": 2306
+},
+"rpg/assets/obj/Fireplace_1.png": {
+"h": "e3c73086ed118dc8878674a8aba5c380a0472bd4fa0fdd570efdb60de071bfa2",
+"s": 805
+},
+"rpg/assets/obj/Flowers_Red.png": {
+"h": "9ccbaa6717ddcc85826cf1cc5a0888c38475760612aa5af6ffca243357e749ed",
+"s": 3271
+},
+"rpg/assets/obj/Flowers_White.png": {
+"h": "4e7aa6ac6c2019a175e53be1e3d3fb9a163d05c989e0b7941731af552977fa3e",
+"s": 3049
+},
+"rpg/assets/obj/HayStack_2.png": {
+"h": "ca7f06e23327d5b01c82ab8f121a9d589ab8b2ec1e3cd69738698425be8e9c13",
+"s": 2041
+},
+"rpg/assets/obj/House_Hay_1.png": {
+"h": "5aa57bf0660c8bc10d8c4c32b5c78f7ada47b077de2b7c3247227f081aaaa923",
+"s": 3278
+},
+"rpg/assets/obj/House_Hay_2.png": {
+"h": "525b209bd4fd956d0f9129ef1a504ff0cf40f68a58a8ac67177e119e1f78bfdf",
+"s": 4450
+},
+"rpg/assets/obj/House_Hay_3.png": {
+"h": "efa1ff0736e2f3df1dc851c7183a8fb06b32ae3ec4b61b2fa79f40a159b6dc15",
+"s": 5322
+},
+"rpg/assets/obj/House_Hay_4_Purple.png": {
+"h": "322bdca3bbbb12b0facd14a8b32d597c379c2f702689579c18b8605b0aba0098",
+"s": 4404
+},
+"rpg/assets/obj/LampPost_3.png": {
+"h": "8c3711f4f04e94a18698f088b897a804c53c0987573431f715911612de1df8bb",
+"s": 2339
+},
+"rpg/assets/obj/Plant_2.png": {
+"h": "c72b490d7221515faad237c4143f8643559b1ca69833baf5558ad57426479640",
+"s": 1835
+},
+"rpg/assets/obj/Rock_Brown_1.png": {
+"h": "e9eae40c6c8d1babee882083239a612650afb9901fb7eec74c3fd3b067e9cdf1",
+"s": 1541
+},
+"rpg/assets/obj/Rock_Brown_2.png": {
+"h": "ff3312254b22121e1d273ace057d98fe3b40e3d72bd874fe0f60801d82d8d952",
+"s": 1567
+},
+"rpg/assets/obj/Rock_Brown_4.png": {
+"h": "e93089a72b15b05c4465f59bbec1ec082567caa626a72687792a07ac68b53fd6",
+"s": 1636
+},
+"rpg/assets/obj/Rock_Brown_6.png": {
+"h": "81fe45ba33c9c6c3e14973ba80f756507d085e5048fe36ed68a47f45b08ad1da",
+"s": 1516
+},
+"rpg/assets/obj/Rock_Brown_9.png": {
+"h": "5e37e457502d8adc3a655777719f0f70451284f6d7811971b02751fb5e55faec",
+"s": 1461
+},
+"rpg/assets/obj/Sack_3.png": {
+"h": "d203497c1712a8ab67d020a7ec38db356df17dee70a0b594bcaf9764a8508080",
+"s": 2052
+},
+"rpg/assets/obj/Sign_1.png": {
+"h": "fa6871c43fa092a8dbe5878e5f85c3c89aaf752c1d23cc77057040c4b44dd749",
+"s": 2046
+},
+"rpg/assets/obj/Sign_2.png": {
+"h": "ccfed0c4d8bb8c8c0ad2d924bc98c32ba42779e403b4707ba4afd74c7a2a1f2b",
+"s": 1834
+},
+"rpg/assets/obj/Table_Medium_1.png": {
+"h": "dad9e4aa5df4690129916a0733d4e5dfa85e81578d1eaa64afa443f70e7b198c",
+"s": 1990
+},
+"rpg/assets/obj/Tree_Emerald_1.png": {
+"h": "07940aef3b437613e1fd85368a13920029ffd88636066a846a977155b6c6ef84",
+"s": 2514
+},
+"rpg/assets/obj/Tree_Emerald_2.png": {
+"h": "61083870eb1ad9dc92d7c30e7d2eb5091afa0a8b6bd29ec99f0504e7abd1071c",
+"s": 2222
+},
+"rpg/assets/obj/Tree_Emerald_3.png": {
+"h": "a18e0412736561fdeb732852fa625805bdaa1161cf96d107fef6acf41abc6bce",
+"s": 2506
+},
+"rpg/assets/obj/Tree_Emerald_4.png": {
+"h": "a992f4aba533648c93f4281b7360797c08277798441a045e9468aa951ee887a9",
+"s": 2429
+},
+"rpg/assets/obj/Well_Hay_1.png": {
+"h": "58660118585c89b695b6a16c0f6ed8220972d3490389255034a0acff66d58828",
+"s": 2518
+},
+"rpg/assets/obj/chests.png": {
+"h": "b22c2e12265f71c7b4841d0ba2f7ee7d3bbe70f65018dff799e907816f3d9960",
+"s": 8523
+},
+"rpg/assets/portraits/apprentice.png": {
+"h": "06169a204490dc33d563c56c4b0374900c8d53d3e0d79cd9d4013356efca9d6b",
+"s": 49635
+},
+"rpg/assets/portraits/hunter.png": {
+"h": "8144dbc88fc08f3fc89521b33bf050bc8255c1a6607a53ce0da1a0c2a5e2e7d4",
+"s": 41451
+},
+"rpg/assets/portraits/king.png": {
+"h": "bcbf35314d123443eaf5b93eeee805d9fae1ec34de9590027c8e025b53031bb5",
+"s": 61430
+},
+"rpg/assets/portraits/knight.png": {
+"h": "cb9fdb6f49b06d432d3a4374d4b08af6a21efe58cf92994714a58625a87676fb",
+"s": 36418
+},
+"rpg/assets/portraits/lucien.png": {
+"h": "6235f51a6ebd4ed0e3c1fcf4901bbb03234f1cd84266b5c0f2a2f95723a3f258",
+"s": 41182
+},
+"rpg/assets/portraits/merchant.png": {
+"h": "d3eccd227e29c7a3f268a909744634549a6d0066d17a6557b4f8c363ac09f5d5",
+"s": 32821
+},
+"rpg/assets/portraits/sailor.png": {
+"h": "9c8aaa3e70cf98cb4e7c815314d89d23193976ce4c97f96d5d05c43fb3b5d2c1",
+"s": 33264
+},
+"rpg/assets/portraits/scribe.png": {
+"h": "3462356ba752f179b72c41cee01ad27ca5cc03004454b6d45aee8083c28ec1a2",
+"s": 34332
+},
+"rpg/assets/portraits/soldier.png": {
+"h": "72e540c1170bfba45e9bf6c3c9d0eb1d45a5da5ad8d4ae525bf609869f08fc0f",
+"s": 48908
+},
+"rpg/assets/portraits/spirit.png": {
+"h": "2fd8353ed6de7a43c4e908ec5cd367bd1d0a7dfd73dbdf75543ac4f83ec014bb",
+"s": 60741
+},
+"rpg/assets/portraits/theophile.png": {
+"h": "049b25fcded9c070f4902ca8c7fa0df2c2fdfa9d428bd43c7f635bdad82af0fe",
+"s": 37914
+},
+"rpg/assets/portraits/towerkeeper.png": {
+"h": "6929b65f32c91f4317c4ef739d7078e6f8c529793b70f41ec608d5b9934b0a42",
+"s": 46747
+},
+"rpg/assets/portraits/valerie.png": {
+"h": "f71b8ec39ff5e80ea2c546c5195e8e6beaecccdf67217eb892624cf3fd60ead1",
+"s": 42373
+},
+"rpg/assets/tiles/ground.png": {
+"h": "9c9a36a277e5d09c970dc0af32ac80334db33a46e4b6a603799aa9364f03d0cc",
+"s": 7676
+},
+"rpg/assets/tiles/road.png": {
+"h": "3658c6bb2269be9b0524f00b5ef8d789b704fd9badd39fcdc2f1e45dd481d0c7",
+"s": 5812
+},
+"rpg/assets/tiles/rockslope.png": {
+"h": "5bb679b6dc68acf308d89b8e947eb24df7838d4853f8485f6151c8fb669df9f3",
+"s": 2723
+},
+"rpg/assets/tiles/water.png": {
+"h": "601d92b7858e8307b6172e995e272e3a67d101fd7464535efc47e9b627349f2c",
+"s": 12296
+},
+"rpg/assets/ui/icons16.png": {
+"h": "29453ad77469bbe09995cbed4fd409e461b0827e0427e0737eae9cf308ec9e07",
+"s": 346929
+},
+"rpg/assets/ui/icons32.png": {
+"h": "66a72f21f30316ac38ca005326c4a157806e8f7431566de1f10c6044b82d6ef9",
+"s": 630931
+},
+"rpg/audio.js": {
+"h": "83bfa253d22e805d39b86a83cd4472f96bd43e5ecd28ca2bd789d9e5d38f2942",
+"s": 14166
+},
+"rpg/battle.js": {
+"h": "f088b1a6ead3ceee6b7e1d3ddeacee3886ba21002c73c3cd087dd7914e91b2b7",
+"s": 56320
+},
+"rpg/characters.js": {
+"h": "9bee9933707bacd7b71fe2249e1ecd90b712d1deec1452da5cd9c7bc0f7cc5c9",
+"s": 2438
+},
+"rpg/core.js": {
+"h": "8dcf153c134313672e0c8fce73d2e3522d404b1b9f80b71c3ebff6e620a776e8",
+"s": 20141
+},
+"rpg/data.js": {
+"h": "b41087003deb6e0012d677caa378217c6fc3ba79a8cd0b1385ee14bdc1a868ff",
+"s": 82890
+},
+"rpg/maps.js": {
+"h": "b89754ad50715fe032dd925d31b8b8602e810a54c9da27e39021b4c0429eb6f5",
+"s": 81688
+},
+"rpg/menu.js": {
+"h": "fe30992a4456083f681426b14e066258007dc6faf8acc556ff2b7553c07e51d2",
+"s": 29133
+},
+"rpg/patches.js": {
+"h": "96c4a2d8fb842d8fcdfd30f90ee4d172ca69a758de606565ea0320c193ced19f",
+"s": 5880
+},
+"rpg/rpg.css": {
+"h": "3ddbba93cb4a36d3c56e76b556b005dedc70cf5266e8cc13c0fb58a4b553dfa0",
+"s": 18244
+},
+"rpg/save.js": {
+"h": "f455b6a8d815286ada34d761f2bbb1b37277d252eb5038acc2f9836dbf347b35",
+"s": 14149
+},
+"rpg/scene.js": {
+"h": "6c4bdf28c21e8e91767e88cc4868b6c019b5e23ecb09f61e3d2224e121b66f18",
+"s": 41387
+},
+"rpg/skip.js": {
+"h": "9caa3de8973c68aacfe7b853700fdd52243ea1c95bc280271e48d58d8b2c6d9c",
+"s": 5168
+},
+"rpg/store.js": {
+"h": "622d347cfd394c8fb358f682383e75a1763824c8646f20d6e350e22f41587de9",
+"s": 5585
+},
+"rpg/story.js": {
+"h": "7dd3a74135051740244b664fe38e3bb1504b3cd424c163d8466ffff5a7e7d2aa",
+"s": 31918
+}
+}
+}

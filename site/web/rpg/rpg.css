@@ -1,0 +1,265 @@
+/* =========================================================
+   RPG 화면 — 흰 공간의 핑크 고딕 UI 변수(--paper · --plum · --rose · --plate …)를 그대로 쓴다
+   ========================================================= */
+.rpg-icon {
+  display: inline-block; flex: 0 0 auto; vertical-align: middle;
+  background-image: url("assets/ui/icons32.png"); background-repeat: no-repeat;
+  image-rendering: pixelated; image-rendering: crisp-edges;
+}
+.rpg-icon.none { width: 32px; height: 32px; background: none; border: 1px dashed var(--rose); opacity: .5; }
+
+/* ---------- 막대 ---------- */
+.rb-bar { display: grid; grid-template-columns: 2.6em 1fr auto; align-items: center; gap: 6px; font-size: var(--fs-small); line-height: 1.25; }
+.rb-bar span { color: var(--muted); font-weight: 700; }
+.rb-bar i { display: block; height: 9px; background: var(--paper-3); border: 1px solid var(--plum-m); overflow: hidden; }
+.rb-bar em { display: block; height: 100%; width: 0; transition: width .3s; }
+.rb-bar b { font-variant-numeric: tabular-nums; color: var(--plum-d); font-size: .92em; min-width: 4.6em; text-align: right; }
+.rb-bar.hp em { background: linear-gradient(#f28a9e, #d64a6a); }
+.rb-bar.mp em { background: linear-gradient(#9cc4ff, #4a7ad6); }
+.rb-bar.exp em { background: linear-gradient(#ffe39a, #d9a21e); }
+.rb-bar.gauge em { background: linear-gradient(var(--job-light, #ffd6e6), var(--job, #c98bb0)); box-shadow: 0 0 6px var(--job, #c98bb0); }
+.rb-bar.gauge.empty span, .rb-bar.gauge.empty b { color: #b0304a; }
+.tag { display: inline-block; padding: 0 .45em; margin: 2px 3px 0 0; font-size: .8em; color: #fff; background: var(--plum-m); border: 1px solid var(--plum-d); }
+.tag.poison { background: #8a4ab0; }
+.tag.buff { background: #3f9a6a; }
+.tag.human { background: #9a7a90; }
+
+/* ---------- 필드 상단 정보 ---------- */
+#rpg-hud {
+  position: absolute; z-index: 20; left: calc(8px + var(--safe-l)); top: max(8px, var(--safe-t));
+  display: none; flex-direction: column; gap: 6px; width: min(300px, 44vw);
+  cursor: pointer;
+}
+#rpg-hud.show { display: flex; }
+#rpg-hud .p-frame::before, #rpg-hud .p-frame::after { display: none; }
+.rh-day { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; padding: 6px 12px; font-size: var(--fs-small); }
+.rh-d { font-size: 1.15em; color: var(--plum-d); }
+.rh-left { color: #b0304a; font-weight: 800; letter-spacing: .03em; }
+.rh-left.urgent { animation: rpgPulse 1.2s ease-in-out infinite; }
+.rh-time { color: var(--plum-m); font-variant-numeric: tabular-nums; }
+.rh-time.late { color: #b0304a; font-weight: 700; }
+.rh-place { width: 100%; color: var(--muted); font-size: .9em; }
+.rh-bars { padding: 7px 12px 8px; display: flex; flex-direction: column; gap: 3px; }
+.rh-gold { font-size: var(--fs-small); color: var(--plum-d); font-weight: 700; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.rh-pts { margin-left: auto; padding: 0 .5em; color: #fff; background: var(--job, #c98bb0); border: 1px solid var(--plum-d); font-size: .85em; }
+@keyframes rpgPulse { 50% { opacity: .45; } }
+
+/* ---------- 전투 ---------- */
+#rpg-battle { position: absolute; inset: 0; z-index: 25; pointer-events: none; display: none; }
+#rpg-battle.show { display: block; }
+.rb-log {
+  position: absolute; left: 50%; top: max(8px, var(--safe-t)); transform: translateX(-50%);
+  width: min(78vw, 760px); min-height: 2.6em; padding: 8px 18px;
+  font-size: var(--fs-small); line-height: 1.5; text-align: center; color: var(--plum-d);
+  display: flex; align-items: center; justify-content: center; pointer-events: auto;
+}
+.rb-log::before, .rb-log::after { display: none; }
+.rb-panel {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  display: grid; grid-template-columns: minmax(250px, 36%) 1fr; gap: 8px;
+  padding: 0 calc(8px + var(--safe-r)) calc(8px + var(--safe-b)) calc(8px + var(--safe-l));
+  pointer-events: none;
+}
+.rb-hero, .rb-cmd { pointer-events: auto; }
+.rb-hero { display: flex; gap: 10px; padding: 8px 10px; align-items: center; }
+.rb-portrait img { width: clamp(56px, 13vh, 96px); aspect-ratio: 1; object-fit: cover; display: block; border: 2px solid var(--plum-d); box-shadow: 0 0 0 2px var(--job); }
+.rb-hero-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.rb-name { font-weight: 800; color: var(--plum-d); font-size: var(--fs-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rb-name small { color: var(--muted); font-weight: 400; }
+.rb-status { min-height: 1.2em; }
+.rb-cmd { padding: 8px; max-height: min(42vh, 260px); overflow-y: auto; }
+.rb-cmd::before, .rb-cmd::after { display: none; }
+.rb-cmd-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; }
+.rb-btn { min-height: 42px; padding: .35em 1.6em; font-size: var(--fs-small); text-align: center; }
+.rb-btn small { display: block; font-size: .78em; opacity: .8; }
+.rb-btn .rpg-icon { margin-right: 2px; }
+.rb-release:not(:disabled) { box-shadow: inset 0 0 0 1px var(--paper-2), inset 0 0 0 2px var(--rose), 0 0 0 2px var(--job), 0 0 10px var(--job); }
+.rb-back { opacity: .85; }
+.rb-result { z-index: 32; pointer-events: auto; }
+.rb-result-panel { width: min(92vw, 460px); padding: 18px 22px 20px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; font-size: var(--fs-small); }
+.rb-result-body { width: 100%; max-height: 50vh; overflow-y: auto; }
+.rb-result-body p { margin: .35em 0; }
+.rb-drops { line-height: 2; }
+.rb-lvup { color: #b07a12; font-weight: 800; font-size: 1.1em; }
+.rb-learn { color: var(--job); font-weight: 800; }
+.rb-warn, .warn { color: #b0304a; font-weight: 700; }
+
+/* ---------- 메뉴 · 상점 ---------- */
+#rpg-menu, #rpg-shop { z-index: 34; }
+.rm-panel {
+  width: min(100%, 880px); height: min(100%, 660px);
+  display: grid; grid-template-rows: auto auto 1fr auto; gap: 8px;
+  padding: clamp(10px, 2vmin, 18px);
+}
+#rpg-menu .rm-panel { grid-template-rows: auto 1fr auto; }
+#rpg-shop .rm-panel { grid-template-rows: auto auto auto 1fr auto; }
+.rs-title { justify-self: center; }
+.rs-gold { justify-self: end; font-size: var(--fs-small); display: flex; align-items: center; gap: 6px; }
+.rm-tabs { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; padding-right: clamp(0px, 10vw, 120px); padding-left: clamp(0px, 10vw, 120px); }
+.rm-tab {
+  font: inherit; font-size: var(--fs-small); font-weight: 700; min-height: 38px; padding: .3em 1.1em;
+  color: var(--plum); background: var(--paper-2); border: 2px solid var(--rose); cursor: pointer; position: relative;
+}
+.rm-tab.active { color: var(--plate-text); background: linear-gradient(var(--plate), #4c3448); border-color: var(--plum-d); }
+.rm-tab .dot { position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: #e0384a; }
+.rm-body { min-height: 0; overflow-y: auto; font-size: var(--fs-small); padding: 4px 6px; background: var(--paper-2); border: 2px solid var(--rose); box-shadow: inset 0 3px 0 var(--job, #c98bb0); }
+.rm-body h4 { margin: .9em 0 .35em; color: var(--rose-d); letter-spacing: .12em; }
+.rm-body h4:first-child { margin-top: .3em; }
+.rm-close { justify-self: center; min-width: 160px; }
+.rm-note { margin: .5em 0; line-height: 1.55; }
+.rm-status { display: flex; gap: 14px; padding: 6px; }
+.rm-portrait img { width: clamp(80px, 22vmin, 170px); aspect-ratio: 1; object-fit: cover; display: block; border: 3px solid var(--plum-d); box-shadow: 0 0 0 2px var(--paper-2), 0 0 0 4px var(--job); }
+.rm-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.rm-info h3 { margin: 0; color: var(--plum-d); font-size: var(--fs); }
+.rm-info h3 small { color: var(--rose-d); }
+.rm-job { margin: 0 0 4px; font-weight: 700; color: var(--plum-d); }
+.rm-job small { color: var(--muted); font-weight: 400; }
+.rm-pts { margin-left: .6em; padding: 0 .5em; color: #fff; background: var(--job); letter-spacing: 0; }
+.rm-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 4px 12px; }
+.rm-stat { display: grid; grid-template-columns: 3em 3em 1fr auto; align-items: center; gap: 6px; padding: 3px 6px; border: 1px solid var(--rose); background: #fff7fb; }
+.rm-stat span { color: var(--muted); font-weight: 700; }
+.rm-stat b { color: var(--plum-d); font-variant-numeric: tabular-nums; }
+.rm-stat small { color: var(--muted); font-size: .85em; }
+.rm-plus { font: inherit; font-weight: 800; min-width: 44px; min-height: 30px; color: var(--plate-text); background: var(--job); border: 2px solid var(--plum-d); cursor: pointer; }
+.rm-list { display: flex; flex-direction: column; gap: 5px; }
+.rm-item { display: flex; align-items: center; gap: 10px; padding: 5px 8px; border: 1px solid var(--rose); background: #fff7fb; }
+.rm-item > div { flex: 1; min-width: 0; }
+.rm-item p { margin: .15em 0 0; color: var(--plum-m); }
+.rm-item small { color: var(--muted); }
+.rm-mini { min-height: 36px; padding: .2em 1.4em; font-size: var(--fs-small); flex: 0 0 auto; }
+.rm-equip { display: grid; grid-template-columns: minmax(240px, 42%) 1fr; gap: 10px; padding: 4px 0; }
+.rm-slots { display: flex; flex-direction: column; gap: 5px; }
+.rm-slot {
+  display: grid; grid-template-columns: 5.2em 32px 1fr; align-items: center; gap: 8px; text-align: left;
+  font: inherit; font-size: var(--fs-small); padding: 5px 8px; color: var(--plum); background: #fff7fb; border: 2px solid var(--rose); cursor: pointer;
+}
+.rm-slot.active { border-color: var(--plum-d); box-shadow: inset 4px 0 0 var(--job); }
+.rm-slot-label { color: var(--rose-d); font-weight: 800; font-size: .9em; }
+.rm-slot-name { display: flex; flex-direction: column; min-width: 0; font-weight: 700; }
+.rm-slot-name small { color: var(--muted); font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rm-pick { display: flex; flex-direction: column; gap: 5px; }
+.rm-diff .up { color: #2f8a5a; font-weight: 700; }
+.rm-diff .down { color: #b0304a; font-weight: 700; }
+.st-ability.locked { opacity: .55; }
+.st-ability { margin-bottom: 5px; }
+.rm-pickbtn { width: 100%; }
+.rm-save { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px; text-align: center; }
+
+/* 월드 지도 */
+.wm { position: relative; width: min(100%, 500px); aspect-ratio: 7 / 6.2; margin: 6px auto; }
+.wm-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.wm-lines line { stroke: var(--plum-m); stroke-width: 3; }
+.wm-lines line.unknown { stroke: var(--rose); stroke-dasharray: 4 4; opacity: .5; }
+.wm-grid { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(7, 1fr); grid-template-rows: repeat(7, 1fr); }
+.wm-grid > div { display: flex; align-items: center; justify-content: center; padding: 3px; }
+.wm-node {
+  margin: 8%; text-align: center; font-size: clamp(9px, 1.7vmin, 13px); font-weight: 700; line-height: 1.2; word-break: keep-all;
+  color: var(--plum-d); background: var(--paper); border: 2px solid var(--plum-d); box-shadow: inset 0 0 0 1px var(--rose); position: relative; z-index: 1;
+}
+.wm-node.unseen { color: var(--muted); background: #f3e8ee; border-style: dashed; }
+.wm-node.here { color: var(--plate-text); background: linear-gradient(var(--plate), #4c3448); box-shadow: 0 0 0 3px var(--job), 0 0 12px var(--job); }
+
+/* ---------- 날짜 카드 ---------- */
+#rpg-daycard {
+  position: absolute; inset: 0; z-index: 44; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  background: radial-gradient(circle, rgba(40, 18, 30, .82), rgba(20, 8, 14, .95));
+  color: #fbe3f0; opacity: 0; transition: opacity .5s;
+}
+#rpg-daycard.show { opacity: 1; }
+.dc-day { font-size: clamp(28px, 7vmin, 56px); font-weight: 800; letter-spacing: .2em; }
+.dc-left { font-size: clamp(16px, 3.4vmin, 26px); color: #ff8a9a; letter-spacing: .12em; }
+#rpg-daycard.urgent .dc-left { color: #ff4a5a; animation: rpgPulse 1.1s ease-in-out infinite; }
+.dc-note { font-size: var(--fs-small); color: #d8b8c8; }
+
+/* ---------- 시작 화면 ---------- */
+.rpg-continue { position: absolute; left: 50%; bottom: calc(64px + var(--safe-b)); transform: translateX(-50%); min-width: 220px; }
+.rpg-continue small { display: block; font-size: .75em; opacity: .8; }
+
+@media (max-height: 480px) {
+  #rpg-hud { width: min(250px, 40vw); gap: 4px; }
+  .rh-day { padding: 4px 8px; }
+  .rh-bars { padding: 4px 8px 5px; gap: 1px; }
+  .rb-bar i { height: 7px; }
+  .rb-panel { grid-template-columns: minmax(210px, 34%) 1fr; }
+  .rb-hero { padding: 5px 8px; }
+  .rb-cmd { max-height: 46vh; padding: 5px; }
+  .rb-btn { min-height: 38px; padding: .2em 1.2em; }
+  .rm-status { flex-direction: row; }
+}
+@media (max-width: 640px) {
+  .rm-equip { grid-template-columns: 1fr; }
+  .rm-status { flex-direction: column; align-items: center; }
+  .rb-panel { grid-template-columns: 1fr; }
+}
+
+/* ---------- 전투: 행동 순서 ---------- */
+.rb-order {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  top: calc(max(8px, var(--safe-t)) + 3.4em); width: min(92vw, 760px);
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 3px 4px;
+  font-size: calc(var(--fs-small) * .9); pointer-events: none;
+}
+.rb-order:empty { display: none; }
+.ro-label { color: var(--plate-text); background: var(--plate); padding: 1px 8px; border: 1px solid var(--plum-d); margin-right: 4px; letter-spacing: .08em; }
+.ro-chip { padding: 1px 8px; border: 1px solid var(--plum-d); background: var(--paper-2); color: var(--plum-d); white-space: nowrap; max-width: 11em; overflow: hidden; text-overflow: ellipsis; }
+.ro-chip.me { background: var(--job, #c98bb0); color: #fff; }
+.ro-chip.foe { background: #f6e2ea; }
+.ro-chip.now { box-shadow: 0 0 0 2px #ffe9a8; font-weight: 800; }
+.ro-chip.done { opacity: .45; }
+.ro-arrow { color: var(--plate-text); font-style: normal; text-shadow: 0 1px 0 var(--plum-d); }
+@media (max-height: 480px) { .rb-order { top: calc(max(6px, var(--safe-t)) + 2.9em); font-size: 11px; } }
+
+/* ---------- 저장 슬롯 ---------- */
+#rpg-slots { z-index: 66; }
+.sv-panel { grid-template-rows: auto auto 1fr auto; height: auto; max-height: 100%; }
+.sv-msg { margin: 0; min-height: 1.2em; text-align: center; color: #b0304a; font-size: var(--fs-small); }
+.sv-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 8px; padding: 4px 0; width: 100%; }
+.sv-card { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; background: #fff7fb; border: 2px solid var(--rose); min-width: 0; }
+.sv-card.latest { border-color: var(--plum-d); box-shadow: 0 0 0 2px var(--job, #c98bb0); }
+.sv-card.broken { border-style: dashed; }
+.sv-head { font-weight: 800; color: var(--rose-d); letter-spacing: .08em; }
+.sv-badge { padding: 0 .5em; color: #fff; background: var(--job, #c98bb0); border: 1px solid var(--plum-d); letter-spacing: 0; font-size: .85em; }
+.sv-body { display: flex; flex-direction: column; gap: 2px; min-height: 3.6em; }
+.sv-main { color: var(--plum-d); }
+.sv-sub, .sv-time { color: var(--muted); font-size: .9em; }
+.sv-btns { display: flex; flex-wrap: wrap; gap: 5px; }
+.sv-btns .rm-mini { flex: 1 1 auto; min-height: 40px; padding: .2em .9em; }
+.sv-btns .rm-mini::before, .sv-btns .rm-mini::after { display: none; }
+.sv-block { margin: 0; text-align: center; }
+.rm-save { align-items: stretch; }
+.sv-text { width: 100%; min-height: 7em; font: 12px/1.4 monospace; word-break: break-all; color: var(--plum-d); background: #fffafd; border: 2px solid var(--plum-d); padding: 6px; -webkit-user-select: text; user-select: text; }
+.sv-start-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.sv-start-btns .rm-close { min-width: 120px; }
+.rm-sound { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 8px 10px; margin-bottom: 8px; border-radius: 8px; background: rgba(255,255,255,.35); }
+.rm-sound label { display: flex; align-items: center; gap: 6px; font-size: var(--fs-small, 13px); }
+.rm-sound input[type=range] { width: 110px; accent-color: var(--job, #b06aa0); }
+.rpg-sound-toggle { margin-top: 8px; font-size: 13px; opacity: .85; }
+/* 초상화 묶음(투명 배경)은 은은한 배경 위에 */
+.dlg-portrait img[src*="assets/portraits"] { background: radial-gradient(circle at 50% 35%, #fff6fb 0%, #e9d3e2 70%, #cdb0c4 100%); object-fit: contain; object-position: center bottom; }
+/* 2부: 아이템 분류 · 상태 태그 · 보석 */
+.rm-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; position: sticky; top: 0; z-index: 1; padding: 4px 0; background: inherit; }
+.rm-chip { border: 1px solid rgba(92,67,87,.35); background: rgba(255,255,255,.55); color: #5c4357; border-radius: 999px; padding: 4px 11px; font: inherit; font-size: 13px; cursor: pointer; }
+.rm-chip.active { background: var(--job, #b06aa0); border-color: transparent; color: #fff; }
+.rm-gem { font-style: normal; color: #8a4fb0; font-weight: 700; }
+.tag.burn { background: #e46a3a; color: #fff; }
+.tag.weak { background: #7a6a8a; color: #fff; }
+.tag.silence { background: #4a5a8a; color: #fff; }
+.tag.el-fire { background: #d9482c; color: #fff; }
+.tag.el-ice { background: #3a8ad0; color: #fff; }
+.tag.el-thunder { background: #c9a020; color: #fff; }
+@media (max-width: 600px) { .rm-chip { padding: 5px 9px; font-size: 12px; } }
+/* 큰 숫자 · 보석 표시: 능력치 칸의 작은 글씨가 한 글자씩 줄바꿈되지 않게 */
+.rm-stat small { white-space: nowrap; font-size: .72em; line-height: 1.2; }
+.rm-stat small .rm-gem { display: block; }
+
+/* ---------- 컷씬 건너뛰기 ---------- */
+#skip-btn {
+  position: absolute; z-index: 12; right: calc(12px + var(--safe-r));
+  bottom: calc(var(--dh, 150px) + 18px + var(--safe-b));
+  min-height: 36px; padding: .25em 1.3em; font-size: var(--fs-small);
+  opacity: 0; pointer-events: none; transform: translateY(6px); transition: opacity .25s, transform .25s;
+}
+#skip-btn.show { opacity: .88; pointer-events: auto; transform: none; }
+#skip-btn.armed { opacity: 1; box-shadow: 0 0 0 2px var(--job, #c98bb0), 0 0 10px var(--job, #c98bb0); }
+#skip-btn.running { opacity: .6; pointer-events: none; }
