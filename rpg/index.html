@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>심연의 계단</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@700;800&family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500;700&display=swap">
+<style>
+/* 레이아웃: 횃불에 비친 낡은 책장. 폰 세로 화면 한 장에 전투가 다 들어가는 1열 구조 */
+:root{
+  --bg:#15120e; --panel:#201b15; --panel2:#2a231b; --line:#3e3429; --ink:#ecdfc6; --dim:#a8977d; --faint:#6e6252;
+  --brass:#d9a54c; --brass-ink:#1b150c; --blood:#d24b3d; --mana:#5b97de; --heal:#7cc46b; --poison:#9bc64f; --crit:#ffd54f; --shield:#a9c1d8;
+  --r-common:#cfc4ae; --r-rare:#62acf2; --r-legend:#f2a92f; --r-cursed:#c65de2;
+  --el-fire:#ec7440; --el-ice:#7fcbec; --el-lightning:#eed44a; --el-holy:#f5e7a6; --el-dark:#a78ddb;
+  --f-display:'Nanum Myeongjo','Batang','AppleMyungjo',serif;
+  --f-body:'IBM Plex Sans KR','Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.5;-webkit-tap-highlight-color:transparent;overflow:hidden}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+button{font:inherit;color:inherit}
+#app{height:100%;max-width:560px;margin:0 auto;display:flex;flex-direction:column;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:8px}
+#top{flex:none}
+#main{flex:1;min-height:0;display:flex;flex-direction:column}
+.scroll{flex:1;min-height:0;overflow-y:auto;padding-bottom:16px;display:flex;flex-direction:column;gap:12px}
+.scroll>*,.title-wrap>*{flex-shrink:0}
+h1,h2,h3{font-family:var(--f-display);font-weight:800;margin:0;text-wrap:balance;letter-spacing:-.01em}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.dim{color:var(--dim)} .faint{color:var(--faint)}
+.small{font-size:12px}
+
+/* 버튼 */
+.btn{appearance:none;border:1px solid var(--line);background:var(--panel2);border-radius:6px;padding:10px 12px;cursor:pointer;text-align:center;min-height:44px;transition:transform .08s,border-color .15s,background .15s}
+.btn:hover{border-color:var(--brass)}
+.btn:active{transform:scale(.97)}
+.btn:focus-visible,.tgt:focus-visible,.card:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.btn[disabled]{opacity:.38;cursor:not-allowed;transform:none}
+.btn.primary{background:var(--brass);color:var(--brass-ink);border-color:var(--brass);font-weight:700}
+.btn.ghost{background:transparent}
+.btn.danger{border-color:var(--blood);color:var(--blood)}
+.btn.sm{min-height:34px;padding:6px 10px;font-size:13px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.grow{flex:1;min-width:0}
+
+/* 상단 상태 */
+.topbar{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:6px 0 8px;border-bottom:1px solid var(--line);margin-bottom:8px}
+.tb-name{font-weight:700;display:flex;gap:6px;align-items:baseline;flex-wrap:wrap}
+.tb-name .cls{font-family:var(--f-display);font-size:16px}
+.tb-right{display:flex;gap:6px;align-items:center;justify-content:flex-end}
+.gold{color:var(--brass);font-family:var(--f-mono);font-weight:700}
+.bars{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr 70px;gap:6px}
+.bar{position:relative;height:16px;background:#0e0c09;border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.bar>i{position:absolute;inset:0 auto 0 0;background:var(--blood);transition:width .35s ease}
+.bar.mp>i{background:var(--mana)} .bar.xp>i{background:var(--brass)} .bar.sh>i{background:var(--shield)}
+.bar>span{position:relative;display:block;text-align:center;font-family:var(--f-mono);font-size:11px;line-height:14px;font-weight:700;text-shadow:0 1px 2px #000}
+
+/* 제목 화면 */
+.title-wrap{display:flex;flex-direction:column;gap:14px;padding-top:12px}
+.logo{font-family:var(--f-display);font-size:clamp(38px,11vw,54px);line-height:1;color:var(--brass);letter-spacing:-.03em}
+.logo small{display:block;font-size:14px;color:var(--dim);letter-spacing:.24em;margin-top:8px;font-family:var(--f-body)}
+.meta-box{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:12px;display:grid;gap:8px}
+.kv{display:flex;justify-content:space-between;gap:10px}
+
+/* 카드 */
+.card{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:6px;text-align:left;cursor:pointer}
+.card:hover{border-color:var(--brass)}
+.card h3{font-size:18px;display:flex;gap:8px;align-items:center}
+.statgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:2px;text-align:center;font-size:11px}
+.statgrid b{display:block;font-family:var(--f-mono);font-size:14px;color:var(--ink)}
+.statgrid span{color:var(--dim)}
+.skill-line{font-size:12px;color:var(--dim)} .skill-line b{color:var(--ink);font-weight:500}
+
+/* 지도 */
+.floor-head{display:flex;flex-direction:column;gap:6px}
+.floor-head h2{font-size:22px}
+.path{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.path i{width:16px;height:6px;border-radius:2px;background:var(--line)}
+.path i.done{background:var(--brass)} .path i.now{background:var(--ink);box-shadow:0 0 0 2px var(--brass)}
+.path em{font-style:normal;font-size:14px;margin-left:2px}
+.flavor{font-family:var(--f-display);color:var(--dim);font-size:15px;border-left:2px solid var(--line);padding-left:10px}
+.choices{display:grid;gap:10px}
+.choice{display:grid;grid-template-columns:48px 1fr;gap:12px;align-items:center;padding:14px}
+.choice .ic{font-size:28px;text-align:center;width:48px;height:48px;line-height:48px;border-radius:50%;background:var(--panel2);border:1px solid var(--line)}
+.choice h3{font-size:17px}
+.choice.boss{border-color:var(--blood)} .choice.boss .ic{border-color:var(--blood)}
+.choice.n-elite .ic{border-color:var(--r-cursed)}
+
+/* 전투 */
+.battle{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px}
+.enemies{display:grid;gap:6px;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr)}
+.ecard{position:relative;border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:6px;display:flex;flex-direction:column;gap:3px;min-width:0;cursor:pointer;transition:opacity .4s,border-color .15s}
+.ecard.boss{border-color:#6d2a22;background:linear-gradient(180deg,#2a1713,var(--panel))}
+.ecard.elite{border-color:#5b3070}
+.ecard.acting{border-color:var(--brass);box-shadow:0 0 0 1px var(--brass)}
+.ecard.tgt{border-color:var(--crit);animation:pulse 1s infinite}
+.ecard.dead{opacity:.28;pointer-events:none}
+.e-top{display:flex;gap:4px;align-items:center;min-width:0}
+.e-icon{font-size:22px;line-height:1}
+.e-name{font-weight:700;font-size:12px;line-height:1.2;overflow-wrap:anywhere}
+.badges{display:flex;gap:3px;flex-wrap:wrap}
+.badge{font-size:10px;padding:0 4px;border-radius:3px;border:1px solid var(--line);color:var(--dim);line-height:16px}
+.intent{font-size:11px;line-height:1.3;padding:3px 5px;border-radius:4px;background:#0e0c09;border:1px dashed var(--line);color:var(--ink)}
+.intent.heavy{border-color:var(--blood);color:#ffb3a8;animation:warn 1.2s infinite}
+.intent .num{color:var(--crit)}
+.intent.next{opacity:.6}
+.chips{display:flex;gap:3px;flex-wrap:wrap;min-height:0}
+.chip{font-size:11px;line-height:16px;padding:0 4px;border-radius:3px;background:var(--panel2);border:1px solid var(--line);white-space:nowrap}
+.chip.bad{border-color:#6d3530} .chip.good{border-color:#3d5a6e}
+.initbar{display:flex;gap:4px;overflow-x:auto;font-size:11px;align-items:center;scrollbar-width:none;min-height:26px}
+.initbar::-webkit-scrollbar{display:none}
+.ini{white-space:nowrap;padding:2px 6px;border-radius:4px;background:var(--panel);border:1px solid var(--line)}
+.ini.me{border-color:var(--brass)}
+.ini.extra{color:var(--crit)}
+.ini b{font-family:var(--f-mono)}
+.ini.now{background:var(--panel2);box-shadow:0 0 0 1px var(--ink)}
+.blog{flex:1;min-height:90px;overflow-y:auto;background:#0f0d0a;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:13px;line-height:1.45}
+.blog p{margin:0 0 2px;animation:fadein .25s}
+.blog .rd{color:var(--faint);font-size:11px;margin-top:4px;border-top:1px dashed var(--line);padding-top:2px}
+.n-p{color:var(--brass)} .n-e{color:#e7b59a}
+.l-dmg{color:var(--blood);font-weight:700;font-family:var(--f-mono)} .l-heal{color:var(--heal);font-weight:700;font-family:var(--f-mono)}
+.l-crit{color:var(--crit);font-weight:700} .l-miss{color:var(--faint)} .l-st{color:#c9a6e8} .l-sys{color:var(--dim)} .l-warn{color:#ffb3a8}
+.l-good{color:var(--heal)} .l-gold{color:var(--brass)}
+.el-fire{color:var(--el-fire)} .el-ice{color:var(--el-ice)} .el-lightning{color:var(--el-lightning)} .el-holy{color:var(--el-holy)} .el-dark{color:var(--el-dark)}
+.pcard{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:6px 8px;display:grid;gap:4px;cursor:pointer}
+.pcard.acting{border-color:var(--brass);box-shadow:0 0 0 1px var(--brass)}
+.p-row{display:flex;gap:6px;align-items:center}
+.p-row .bar{flex:1}
+.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;min-height:100px;align-content:start}
+.actions .btn{padding:8px 4px;font-size:14px}
+.actions .wide{grid-column:1/-1}
+.actions .note{grid-column:1/-1;text-align:center;color:var(--dim);font-size:12px;padding:4px}
+.actlist{grid-column:1/-1;display:grid;gap:6px;max-height:34vh;overflow-y:auto}
+.act-item{display:grid;grid-template-columns:1fr auto;gap:2px 8px;text-align:left;padding:8px 10px}
+.act-item .d{grid-column:1/-1;font-size:11px;color:var(--dim)}
+.reward{grid-column:1/-1;border:1px solid var(--brass);background:var(--panel);border-radius:6px;padding:12px;display:grid;gap:6px}
+.reward h3{color:var(--brass);font-size:20px}
+
+/* 효과 */
+#fx{position:fixed;inset:0;pointer-events:none;z-index:50;overflow:hidden}
+.pop{position:absolute;transform:translate(-50%,0);font-family:var(--f-mono);font-weight:700;font-size:20px;text-shadow:0 2px 0 #000,0 0 6px #000;animation:pop .95s ease-out forwards;white-space:nowrap}
+.pop.dmg{color:#ff6b5b} .pop.crit{color:var(--crit);font-size:28px} .pop.heal{color:var(--heal)} .pop.miss{color:#bbb;font-size:15px} .pop.st{color:#d4b2f0;font-size:13px} .pop.shield{color:var(--shield);font-size:16px} .pop.mana{color:var(--mana);font-size:16px}
+.shake{animation:shake .35s}
+.flash::after{content:"";position:absolute;inset:0;border-radius:6px;background:#ff3b2b;opacity:0;animation:flash .35s;pointer-events:none}
+.pcard{position:relative}
+@keyframes pop{0%{opacity:0;transform:translate(-50%,6px) scale(.6)}15%{opacity:1;transform:translate(-50%,-6px) scale(1.25)}35%{transform:translate(-50%,-14px) scale(1)}100%{opacity:0;transform:translate(-50%,-56px) scale(.95)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(2px)}}
+@keyframes flash{0%{opacity:.45}100%{opacity:0}}
+@keyframes pulse{50%{box-shadow:0 0 0 2px var(--crit)}}
+@keyframes warn{50%{background:#2a1210}}
+@keyframes fadein{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+#main.screen-shake{animation:shake .4s}
+@media (prefers-reduced-motion:reduce){.shake,#main.screen-shake,.ecard.tgt,.intent.heavy{animation:none}.pop{animation-duration:.6s}}
+
+/* 모달 */
+#modal{position:fixed;inset:0;z-index:40;display:none;background:rgba(8,6,4,.78);padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));align-items:center;justify-content:center}
+#modal.open{display:flex}
+.mbox{width:100%;max-width:520px;max-height:100%;overflow-y:auto;background:var(--panel);border:1px solid var(--brass);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:12px;animation:fadein .2s}
+.mbox h2{font-size:20px}
+.sec-t{font-size:11px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;margin-top:4px}
+.slots{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.slot{border:1px dashed var(--line);border-radius:6px;padding:8px;min-height:52px;cursor:pointer;text-align:left;background:transparent;display:flex;flex-direction:column}
+.slot .lab{font-size:10px;color:var(--faint)}
+.items{display:grid;gap:6px}
+.it{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:8px 10px;text-align:left}
+.it .ico{font-size:20px}
+.it .d{font-size:11px;color:var(--dim)}
+.rar-common{color:var(--r-common)} .rar-rare{color:var(--r-rare)} .rar-legend{color:var(--r-legend)} .rar-cursed{color:var(--r-cursed)}
+.it.sel{border-color:var(--crit);background:#2f2716}
+.perks{display:grid;gap:8px}
+.perk{padding:14px}
+.perk h3{font-size:17px}
+.statline{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;font-size:12px}
+.statline div{background:var(--panel2);border-radius:4px;padding:4px 6px}
+.statline b{font-family:var(--f-mono);float:right}
+.roll{display:inline-block;font-family:var(--f-mono);font-size:12px;background:#0e0c09;border:1px solid var(--line);border-radius:4px;padding:2px 6px;margin:2px 0}
+.ev-text{font-size:15px;line-height:1.7}
+.ev-text p{margin:0 0 8px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--panel2);border:1px solid var(--brass);border-radius:6px;padding:8px 14px;z-index:60;max-width:90vw;animation:fadein .2s;font-size:13px}
+</style>
+</head>
+<body>
+<div id="app"><header id="top"></header><main id="main"></main></div>
+<div id="modal"></div>
+<div id="fx"></div>
+<script>
+'use strict';
+/* =====================================================================
+   데이터 영역 — 여기만 늘리면 콘텐츠가 늘어납니다.
+   - stats: 숫자는 더해짐(hitMult/skillCostMul/goldMul/dmgTakenMul도 덧셈), immune/vsTag/flags는 합쳐짐
+   - late(s): 모든 계산 후 조건부 보정 (예: HP 50% 이하일 때)
+   ===================================================================== */
+const RARITY = {
+  common:{name:'일반', w:60, gear:40},
+  rare:{name:'희귀', w:28, gear:90},
+  legend:{name:'전설', w:5, gear:190},
+  cursed:{name:'저주', w:7, gear:65},
+};
+const ELEMENTS = {
+  fire:{name:'불', icon:'🔥'}, ice:{name:'얼음', icon:'❄'}, lightning:{name:'번개', icon:'⚡'},
+  holy:{name:'신성', icon:'✦'}, dark:{name:'암흑', icon:'☾'},
+};
+// 공격 속성 → 유리한 대상 속성 (불→얼음→번개→불, 신성↔암흑)
+const ELEMENT_BEATS = { fire:'ice', ice:'lightning', lightning:'fire', holy:'dark', dark:'holy' };
+const STAT_NAME = {atk:'공격력', def:'방어력', agi:'민첩', mag:'마력', maxHp:'최대 HP', maxMana:'최대 마나', crit:'치명타%', evade:'회피%'};
+
+const STATUSES = {
+  // tick: 'end' = 걸린 쪽의 턴이 끝날 때 1 감소 / 'start' = 걸린 쪽의 턴이 시작될 때 1 감소 / 'none' = 전투 내내
+  poison:{name:'중독',icon:'☠',bad:true,tick:'end',desc:'턴마다 최대 HP 5% 피해'},
+  toxic:{name:'맹독',icon:'🧪',bad:true,tick:'end',desc:'턴마다 피해가 3씩 커짐'},
+  bleed:{name:'출혈',icon:'🩸',bad:true,tick:'end',desc:'중첩당 턴마다 2 피해 (최대 10중첩)'},
+  burn:{name:'화상',icon:'🔥',bad:true,tick:'end',desc:'턴마다 최대 HP 6% 피해, 방어력 -2'},
+  stun:{name:'기절',icon:'💫',bad:true,tick:'end',desc:'다음 행동 불가'},
+  sleep:{name:'수면',icon:'💤',bad:true,tick:'end',desc:'행동 불가, 피해를 받으면 깨어남'},
+  slow:{name:'둔화',icon:'🐌',bad:true,tick:'end',desc:'민첩 -40%'},
+  silence:{name:'침묵',icon:'🤐',bad:true,tick:'end',desc:'스킬 사용 불가'},
+  weak:{name:'약화',icon:'🥀',bad:true,tick:'end',desc:'주는 피해 -30%'},
+  noheal:{name:'광휘',icon:'🍄',bad:true,tick:'end',desc:'HP 회복 불가'},
+  frenzy:{name:'발광',icon:'🍷',tick:'start',desc:'공격력 +40%, 민첩 +30%, 받는 피해 +25%'},
+  stealth:{name:'은신',icon:'👤',tick:'start',desc:'공격을 모두 피함, 다음 공격 치명타 확정'},
+  smoke:{name:'연막',icon:'🌫',tick:'start',desc:'회피 100%'},
+  guard:{name:'방어 태세',icon:'🛡',tick:'start',desc:'방어력 증가'},
+  defend:{name:'방어',icon:'🛡',tick:'start',desc:'받는 피해 50% 감소'},
+  barrier:{name:'마나 방벽',icon:'🔷',tick:'start',desc:'받는 피해를 마나로 흡수 (마나 1 = 피해 2)'},
+  venom:{name:'독 바르기',icon:'🐍',tick:'start',desc:'공격 시 3턴 중독 부여'},
+  mirror:{name:'거울',icon:'🪞',tick:'none',desc:'다음에 받는 적 스킬 1회 반사'},
+  imbue:{name:'속성 부여',icon:'✨',tick:'none',desc:'공격에 속성 추가'},
+  enrage:{name:'분노',icon:'😡',tick:'none',desc:'공격력 +50%'},
+};
+
+const SKILLS = {
+  bash:{name:'강타',cost:6,target:'one',desc:'공격력 160% 피해, 40% 확률 기절',
+    run(t,s){ const r=strike(P,t,s.atk*1.6,{type:'phys'}); if(r.hit&&t.hp>0&&chance(40)) addStatus(t,'stun',1); }},
+  taunt:{name:'도발',cost:5,target:'self',desc:'2턴 동안 방어력 +8, 마나 +3',
+    run(){ addStatus(P,'guard',2,{pow:8}); gainMana(3); log(`${nm(P,'이/가')} 방패를 두드리며 적을 도발한다!`); }},
+  rage:{name:'분노 폭발',cost:10,cd:2,target:'one',desc:'공격력 80% + 잃은 HP의 40% 피해 (쿨타임 2)',
+    run(t,s){ strike(P,t,s.atk*0.8+(s.maxHp-P.hp)*0.4,{type:'phys'}); }},
+  fireball:{name:'파이어볼',cost:9,target:'one',desc:'마력 200% 불 피해, 60% 확률 화상 3턴',
+    run(t,s){ const r=strike(P,t,s.mag*2,{type:'magic',element:'fire'}); if(r.hit&&t.hp>0&&chance(60)) addStatus(t,'burn',3); }},
+  frost:{name:'냉기 폭풍',cost:14,target:'all',desc:'적 전체에 마력 110% 얼음 피해 + 둔화 2턴',
+    run(t,s){ for(const e of alive()){ const r=strike(P,e,s.mag*1.1,{type:'magic',element:'ice'}); if(r.hit&&e.hp>0) addStatus(e,'slow',2); } }},
+  manaShield:{name:'마나 방벽',cost:6,cd:3,target:'self',desc:'3턴 동안 받는 피해를 마나로 흡수 (쿨타임 3)',
+    run(){ addStatus(P,'barrier',3); }},
+  vital:{name:'급소 찌르기',cost:7,target:'one',desc:'공격력 130% 피해, 치명타 확정',
+    run(t,s){ strike(P,t,s.atk*1.3,{type:'phys',forceCrit:true}); }},
+  envenom:{name:'독 바르기',cost:6,target:'self',quick:true,desc:'3턴 동안 공격이 중독을 건다. 턴을 쓰지 않음',
+    run(){ addStatus(P,'venom',3); }},
+  smokeBomb:{name:'연막',cost:8,cd:3,target:'self',desc:'1턴 회피 100%, 이번 전투 도주 확정 (쿨타임 3)',
+    run(){ addStatus(P,'smoke',1); B.fleeSure=true; log(`<span class="l-sys">연기가 퍼진다. 이제 언제든 달아날 수 있다.</span>`); }},
+};
+
+const CLASSES = {
+  warrior:{name:'전사',icon:'⚔',blurb:'두꺼운 몸과 큰 한 방. 맞을수록 강해진다.',
+    base:{atk:10,def:8,agi:4,mag:2,maxMana:20,maxHp:120}, growth:{atk:.6,def:.4,maxHp:6},
+    skills:['bash','taunt','rage'], start:['potion','potion'],
+    passive:{name:'투지',desc:'HP 50% 이하일 때 공격력 +30%', late(s){ if(P.hp<=s.maxHp*.5) s.atk*=1.3; }}},
+  mage:{name:'마법사',icon:'✶',blurb:'약한 몸, 강한 주문. 속성 상성을 노려라.',
+    base:{atk:3,def:3,agi:5,mag:12,maxMana:60,maxHp:70}, growth:{mag:.8,maxMana:4,maxHp:3},
+    skills:['fireball','frost','manaShield'], start:['potion','ether'],
+    passive:{name:'원소 통달',desc:'속성 상성이 유리하면 피해 +30% 추가. 기본 공격은 마력 화살',stats:{elemBonus:.3,flags:{basicMagic:true}}}},
+  rogue:{name:'도적',icon:'🗡',blurb:'빠르고 교활하다. 먼저 움직이고 더 많이 챙긴다.',
+    base:{atk:7,def:4,agi:12,mag:3,maxMana:30,maxHp:85}, growth:{agi:.5,atk:.4,maxHp:4},
+    skills:['vital','envenom','smokeBomb'], start:['potion','ink'],
+    passive:{name:'손버릇',desc:'골드 획득 +30%, 아이템 드롭 확률 +15%',stats:{goldMul:.3,dropBonus:15}}},
+};
+
+/* 몬스터 ai: type = attack | buff | debuff | heal | summon | steal
+   status: [상태ID, 턴, 확률%, 추가데이터]   heavy: 강한 공격(경고 표시)   skill: 거울 조각으로 반사 가능 */
+const MONSTERS = {
+  slime:{name:'서리 슬라임',icon:'🧊',hp:24,atk:5,def:1,agi:2,mag:4,element:'ice',exp:6,gold:[4,8],cost:1,
+    desc:'차갑게 떨리는 젤리. 불에 약하다.',
+    ai:[{id:'tackle',name:'몸통 박치기',type:'attack',mult:1,w:3},
+        {id:'chill',name:'냉기 점액',type:'attack',mult:1,magic:true,element:'ice',status:['slow',2,70],w:2,skill:true},
+        {id:'split',name:'분열',type:'summon',summon:'slimelet',w:6,once:true,text:'몸이 둘로 갈라지려 한다',cond:e=>e.hp<e.maxHp*.65}]},
+  slimelet:{name:'꼬마 슬라임',icon:'💧',hp:10,atk:3,def:0,agi:3,mag:2,element:'ice',exp:2,gold:[1,3],cost:.5,
+    ai:[{id:'tackle',name:'톡 튀기',type:'attack',mult:1,w:1}]},
+  goblin:{name:'고블린 소매치기',icon:'👺',hp:26,atk:7,def:2,agi:9,mag:0,exp:8,gold:[8,14],cost:1,
+    desc:'손이 빠르다. 쓰러뜨리면 훔친 골드를 돌려받는다.',
+    ai:[{id:'stab',name:'찌르기',type:'attack',mult:1,w:3},
+        {id:'double',name:'연속 베기',type:'attack',mult:.65,hits:2,w:2},
+        {id:'steal',name:'소매치기',type:'steal',amount:[6,14],w:1.4,text:'주머니를 노린다',cond:()=>RUN.gold>0}]},
+  skeleton:{name:'해골 병사',icon:'💀',hp:32,atk:8,def:4,agi:3,mag:0,element:'dark',tags:['undead'],exp:10,gold:[6,10],cost:1.4,
+    desc:'녹슨 칼과 방패. 강타를 준비할 땐 방어하자.',
+    ai:[{id:'slash',name:'녹슨 칼질',type:'attack',mult:1,w:3},
+        {id:'shield',name:'방패 올리기',type:'buff',status:['guard',1,100,{pow:6}],w:1},
+        {id:'smash',name:'강타',type:'attack',mult:2.1,heavy:true,w:1.4,noRepeat:true,text:'강타 준비 중!'}]},
+  spider:{name:'독거미',icon:'🕷',hp:20,atk:6,def:1,agi:11,mag:0,exp:8,gold:[5,9],cost:1,
+    desc:'재빠르다. 맹독은 오래 끌수록 아프다.',
+    ai:[{id:'bite',name:'물기',type:'attack',mult:1,status:['poison',3,50],w:3},
+        {id:'web',name:'거미줄',type:'debuff',status:['slow',2,100],w:1.5,skill:true},
+        {id:'fang',name:'맹독 주입',type:'attack',mult:.7,status:['toxic',4,100],w:1.2,noRepeat:true,text:'독니에서 진액이 흐른다'}]},
+  imp:{name:'불씨 임프',icon:'😈',hp:22,atk:4,def:2,agi:7,mag:7,element:'fire',tags:['demon'],exp:9,gold:[6,12],cost:1.2,
+    desc:'동료를 부추기고 불을 던진다. 얼음 공격에 강하다.',
+    ai:[{id:'claw',name:'할퀴기',type:'attack',mult:1,w:2},
+        {id:'bolt',name:'불덩이',type:'attack',mult:1.4,magic:true,element:'fire',status:['burn',2,40],w:2.5,skill:true},
+        {id:'cackle',name:'광기의 웃음',type:'buff',target:'allies',status:['frenzy',2,100],w:1,noRepeat:true,text:'동료들을 부추긴다'},
+        {id:'hex',name:'혀 꼬기 저주',type:'debuff',status:['silence',2,100],w:.8,skill:true,noRepeat:true}]},
+  bat:{name:'흡혈 박쥐',icon:'🦇',hp:16,atk:5,def:0,agi:14,mag:0,exp:6,gold:[3,6],cost:.8,evade:10,
+    desc:'잘 피한다. 피를 빨아 회복한다.',
+    ai:[{id:'suck',name:'흡혈',type:'attack',mult:1,lifesteal:.6,w:3},
+        {id:'screech',name:'초음파',type:'debuff',status:['weak',2,100],w:1,skill:true}]},
+  mimic:{name:'미믹',icon:'📦',hp:48,atk:10,def:5,agi:5,mag:0,exp:22,gold:[30,50],cost:3,
+    desc:'보물상자인 척하던 이빨 덩어리.',
+    ai:[{id:'chomp',name:'깨물기',type:'attack',mult:1.1,w:3},
+        {id:'lick',name:'끈적한 혀',type:'debuff',status:['weak',2,100],w:1},
+        {id:'gulp',name:'통째로 삼키기',type:'attack',mult:2.3,heavy:true,noRepeat:true,w:1.3,text:'입을 쩍 벌린다!'}]},
+  lich:{name:'해골 왕 바르굼',icon:'👑',boss:true,hp:150,atk:11,def:5,agi:6,mag:9,element:'dark',tags:['undead'],exp:60,gold:[80,110],
+    immune:{sleep:1},resist:{stun:60},
+    desc:'지하묘지의 주인. 신성과 불에 그을린다. 체력이 반 아래로 떨어지면 분노한다.',
+    ai:[{id:'swing',name:'뼈 지팡이 휘두르기',type:'attack',mult:1,w:3},
+        {id:'raise',name:'망자 소환',type:'summon',summon:'skeleton',w:2,noRepeat:true,text:'바닥의 뼈가 덜그럭거린다',cond:()=>alive().length<3},
+        {id:'curse',name:'저주의 외침',type:'debuff',status:['weak',2,100],w:1.3,skill:true,noRepeat:true},
+        {id:'scythe',name:'사신의 낫',type:'attack',mult:2.4,heavy:true,noRepeat:true,w:1.5,text:'사신의 낫을 치켜든다!'},
+        {id:'drain',name:'생명 흡수',type:'attack',mult:1.3,magic:true,element:'dark',lifesteal:1,skill:true,w:2,cond:e=>e.hp<e.maxHp*.5},
+        {id:'wrath',name:'분노',type:'buff',status:['enrage',99,100],once:true,w:50,text:'눈구멍이 붉게 타오른다',cond:e=>e.hp<e.maxHp*.5}]},
+};
+
+const FLOORS = [
+  {name:'축축한 지하묘지', steps:9, boss:'lich',
+    pool:{slime:3,goblin:3,skeleton:2,spider:2,imp:2,bat:2},
+    flavor:['물방울이 떨어지는 소리가 멀리서 울린다.','벽의 횃불이 저절로 흔들린다.','썩은 뼈 냄새가 짙어진다.','어디선가 낄낄대는 웃음소리.','발밑에서 무언가 바스락거린다.'],
+    bossIntro:'왕관을 쓴 해골이 옥좌에서 몸을 일으킨다. "또 하나의 신하가 오는구나."'},
+];
+
+const NODE_TYPES = {
+  battle:{name:'전투',icon:'⚔',desc:'몬스터의 기척이 느껴진다',w:34},
+  elite:{name:'정예 전투',icon:'💀',desc:'강한 적. 아이템을 반드시 떨어뜨린다',w:9,minStep:3},
+  event:{name:'사건',icon:'❓',desc:'무슨 일이 일어날지 모른다',w:24},
+  shop:{name:'상점',icon:'🛒',desc:'떠돌이 상인 모르크의 좌판',w:9,minStep:1},
+  alchemist:{name:'연금술사',icon:'⚗',desc:'수상한 연금술사 이브의 솥',w:8,minStep:2},
+  rest:{name:'휴식',icon:'🔥',desc:'꺼져가는 모닥불',w:11,minStep:2},
+  treasure:{name:'보물',icon:'💎',desc:'반짝이는 상자가 보인다',w:8},
+};
+
+/* 아이템: type = cons(소모품) | weapon | armor | acc
+   소모품: field(지도에서 사용 가능) battle(전투에서 사용) target('one'|'all'|'self') quick(턴 안 씀) passive(사용 불가, 자동 발동)
+   recipeOnly: 상점·드롭에 나오지 않고 연금술로만 얻음 */
+const ITEMS = {
+  // ── 소모품
+  potion:{type:'cons',name:'회복 물약',icon:'🧴',rarity:'common',price:18,field:true,battle:true,desc:'HP 40 회복',use(){ healMsg(P,40); }},
+  hipotion:{type:'cons',name:'고급 회복 물약',icon:'🍶',rarity:'rare',price:45,field:true,battle:true,recipeOnly:true,desc:'HP 100 회복',use(){ healMsg(P,100); }},
+  ether:{type:'cons',name:'마나 물약',icon:'🫙',rarity:'common',price:18,field:true,battle:true,desc:'마나 25 회복',use(){ gainMana(25,true); }},
+  angel:{type:'cons',name:'천사의 피',icon:'🩸',rarity:'rare',price:70,field:true,battle:true,desc:'HP 전부 회복, 나쁜 상태이상 해제',use(){ cleanse(P); healMsg(P,9999); }},
+  fire_dust:{type:'cons',name:'불의 가루',icon:'🟠',rarity:'common',price:22,battle:true,desc:'이번 전투 동안 공격에 불 속성',use(){ imbue('fire'); }},
+  ice_dust:{type:'cons',name:'얼음의 가루',icon:'🔵',rarity:'common',price:22,battle:true,desc:'이번 전투 동안 공격에 얼음 속성',use(){ imbue('ice'); }},
+  thunder_dust:{type:'cons',name:'번개의 가루',icon:'🟡',rarity:'common',price:22,battle:true,desc:'이번 전투 동안 공격에 번개 속성',use(){ imbue('lightning'); }},
+  holy_dust:{type:'cons',name:'신성의 가루',icon:'⚪',rarity:'rare',price:30,battle:true,desc:'이번 전투 동안 공격에 신성 속성',use(){ imbue('holy'); }},
+  dark_dust:{type:'cons',name:'암흑의 가루',icon:'🟣',rarity:'rare',price:30,battle:true,desc:'이번 전투 동안 공격에 암흑 속성',use(){ imbue('dark'); }},
+  wine:{type:'cons',name:'포도주',icon:'🍷',rarity:'common',price:20,battle:true,desc:'3턴 발광: 공격력·민첩 증가, 받는 피해 증가',use(){ addStatus(P,'frenzy',3); }},
+  banshee:{type:'cons',name:'벤시의 눈물',icon:'💧',rarity:'rare',price:40,battle:true,target:'one',desc:'적 하나를 3턴 재운다 (맞으면 깸)',use(t){ addStatus(t,'sleep',3); }},
+  ink:{type:'cons',name:'그림자 잉크',icon:'🖋',rarity:'rare',price:38,battle:true,desc:'2턴 은신. 다음 공격 치명타 확정',use(){ addStatus(P,'stealth',2); }},
+  coin:{type:'cons',name:'망자의 동전',icon:'🪙',rarity:'rare',price:60,passive:true,desc:'갖고 있으면 쓰러질 때 1회 HP 1로 부활 (자동 소모)'},
+  candy:{type:'cons',name:'마나석 사탕',icon:'🍬',rarity:'common',price:24,battle:true,field:true,desc:'마나 전부 회복. 다음 턴 침묵',use(){ gainMana(9999,true); if(B) addStatus(P,'silence',1); }},
+  rat:{type:'cons',name:'역병쥐 꼬리',icon:'🐀',rarity:'common',price:22,battle:true,target:'one',desc:'적 하나에 맹독 5턴 (턴마다 피해 증가)',use(t){ addStatus(t,'toxic',5); }},
+  sand:{type:'cons',name:'시간의 모래',icon:'⏳',rarity:'legend',price:90,battle:true,quick:true,desc:'턴을 쓰지 않고 한 번 더 행동',use(){ log(`<span class="l-st">시간이 잠시 멈춘다...</span>`); }},
+  glow:{type:'cons',name:'광휘의 버섯',icon:'🍄',rarity:'common',price:20,battle:true,desc:'적 전체 5턴 HP 회복 불가',use(){ for(const e of alive()) addStatus(e,'noheal',5); }},
+  giant:{type:'cons',name:'거인의 심장',icon:'🫀',rarity:'rare',price:50,battle:true,desc:'이번 전투 최대 HP +50%(그만큼 회복), 민첩 -30%',
+    use(){ const before=pStats().maxHp; B.giant=true; const after=pStats().maxHp; P.hp+=after-before; popup(P,'+'+(after-before),'heal'); log(`<span class="l-good">심장이 거인처럼 고동친다.</span>`); }},
+  frost_perfume:{type:'cons',name:'서리꽃 향수',icon:'❄',rarity:'rare',price:40,battle:true,recipeOnly:true,desc:'적 전체 3턴 둔화',use(){ for(const e of alive()) addStatus(e,'slow',3); }},
+  berserk:{type:'cons',name:'광전사의 술',icon:'🍺',rarity:'rare',price:45,battle:true,recipeOnly:true,desc:'이번 전투 동안 잃은 HP 8당 공격력 +1',use(){ B.berserk=true; log(`<span class="l-warn">피가 끓어오른다!</span>`); }},
+  mirror:{type:'cons',name:'거울 조각',icon:'🪞',rarity:'rare',price:42,battle:true,quick:true,desc:'다음에 받는 적 스킬 1회 반사. 턴을 쓰지 않음',use(){ addStatus(P,'mirror',99); }},
+  bomb:{type:'cons',name:'화약 폭탄',icon:'💣',rarity:'rare',price:45,battle:true,recipeOnly:true,target:'all',desc:'적 전체에 30 불 피해 (층마다 증가)',
+    use(){ for(const e of alive()) strike(P,e,30*floorScale(),{type:'true',element:'fire',noEvade:true,noProc:true}); shakeScreen(); }},
+  junk:{type:'cons',name:'끈적한 실패작',icon:'🫠',rarity:'common',price:4,battle:true,field:true,recipeOnly:true,desc:'아무 쓸모 없어 보인다... 아마도.',
+    use(){ if(chance(50)){ healMsg(P,10); } else { log('<span class="l-sys">우웩. 아무 일도 일어나지 않았다.</span>'); toastIfField('우웩. 아무 일도 없었다.'); } }},
+
+  // ── 무기
+  dagger:{type:'weapon',name:'단검',icon:'🔪',rarity:'common',desc:'2회 공격 (각 60%), 치명타 +10%',stats:{atk:2,crit:10,hits:1,hitMult:-.4}},
+  greatsword:{type:'weapon',name:'대검',icon:'🗡',rarity:'common',desc:'느리지만 묵직하다. 20% 확률 기절',stats:{atk:7,agi:-3,stunChance:20}},
+  spear:{type:'weapon',name:'창',icon:'🔱',rarity:'common',desc:'방어력 50% 무시',stats:{atk:4,armorPen:.5}},
+  staff:{type:'weapon',name:'지팡이',icon:'🪄',rarity:'common',desc:'기본 공격이 마력 비례, 스킬 마나 -25%',stats:{mag:4,skillCostMul:-.25,flags:{basicMagic:true}}},
+  twinaxe:{type:'weapon',name:'쌍도끼',icon:'🪓',rarity:'rare',desc:'2회 공격 (각 60%), 맞을 때마다 출혈 누적',stats:{atk:4,hits:1,hitMult:-.4,bleedOnHit:70}},
+  bow:{type:'weapon',name:'활',icon:'🏹',rarity:'common',desc:'전투 시작 시 선제 사격 (공격력 80%)',stats:{atk:3,agi:1,flags:{firstShot:true}}},
+  scythe:{type:'weapon',name:'흡혈의 낫',icon:'🌙',rarity:'rare',desc:'준 피해의 25% 흡혈',stats:{atk:5,lifesteal:.25}},
+  cursed_sword:{type:'weapon',name:'저주받은 검',icon:'⚔',rarity:'cursed',desc:'가장 강한 공격력. 내 턴마다 HP 4 자해',stats:{atk:13,selfDmg:4}},
+  holy_mace:{type:'weapon',name:'성배의 철퇴',icon:'🔨',rarity:'legend',element:'holy',desc:'신성 속성. 언데드·악마에게 2배 피해',stats:{atk:7,vsTag:{undead:2,demon:2}}},
+  venom_fang:{type:'weapon',name:'독니 단검',icon:'🐍',rarity:'rare',recipeOnly:true,desc:'2회 공격 (각 60%), 40% 확률 중독',stats:{atk:3,crit:5,hits:1,hitMult:-.4,poisonOnHit:40}},
+
+  // ── 방어구
+  leather:{type:'armor',name:'가죽 갑옷',icon:'🦺',rarity:'common',desc:'가볍다. 회피 +8%',stats:{def:2,evade:8}},
+  plate:{type:'armor',name:'판금 갑옷',icon:'🛡',rarity:'rare',desc:'최고의 방어. 민첩 -3',stats:{def:9,agi:-3}},
+  robe:{type:'armor',name:'마법사 로브',icon:'🥋',rarity:'common',desc:'턴마다 마나 회복 +3',stats:{def:1,mag:2,manaRegen:3}},
+  thorn:{type:'armor',name:'가시 갑옷',icon:'🌵',rarity:'rare',desc:'받은 물리 피해의 30% 반사',stats:{def:3,thorns:.3}},
+  cloak:{type:'armor',name:'그림자 망토',icon:'🧥',rarity:'rare',desc:'전투 시작 시 은신',stats:{def:1,agi:1,flags:{firstStealth:true}}},
+  chain:{type:'armor',name:'사슬 갑옷',icon:'⛓',rarity:'common',desc:'출혈 면역',stats:{def:5,immune:{bleed:1}}},
+  ice_armor:{type:'armor',name:'얼음 결정 갑옷',icon:'💠',rarity:'rare',recipeOnly:true,desc:'나를 때린 적을 50% 확률로 둔화',stats:{def:4,flags:{chillOnHit:true}}},
+  dragon:{type:'armor',name:'용비늘 갑옷',icon:'🐉',rarity:'legend',desc:'불 속성 피해 무효',stats:{def:6,maxHp:20,flags:{fireImmune:true}}},
+
+  // ── 악세사리
+  viper_ring:{type:'acc',name:'독사의 반지',icon:'💍',rarity:'common',desc:'공격 시 30% 확률 중독',stats:{poisonOnHit:30}},
+  crystal:{type:'acc',name:'수정 목걸이',icon:'🔮',rarity:'common',desc:'전투 시작 시 보호막 15 (층마다 증가)',stats:{startShield:15}},
+  dice:{type:'acc',name:'도박꾼의 주사위',icon:'🎲',rarity:'rare',desc:'행동 순서 주사위를 2번 굴려 높은 값',stats:{flags:{diceTwice:true}}},
+  wolf:{type:'acc',name:'늑대 이빨 목걸이',icon:'🐺',rarity:'rare',desc:'HP 30% 이하일 때 공격력 2배',late(s){ if(P.hp<=s.maxHp*.3) s.atk*=2; }},
+  feather:{type:'acc',name:'바람의 깃털',icon:'🪶',rarity:'common',desc:'민첩 +2, 주사위 +2',stats:{agi:2,diceBonus:2}},
+  sage:{type:'acc',name:'현자의 귀걸이',icon:'📿',rarity:'rare',desc:'스킬에 쓴 마나 40% 환급',stats:{skillRefund:.4}},
+  greed:{type:'acc',name:'탐욕의 팔찌',icon:'⛓',rarity:'cursed',desc:'골드 2배. 받는 피해 +25%',stats:{goldMul:1,dmgTakenMul:.25}},
+  phoenix:{type:'acc',name:'불사조 깃털',icon:'🔥',rarity:'legend',desc:'전투마다 1회, 쓰러지면 HP 40%로 부활',stats:{phoenix:1}},
+  glasses:{type:'acc',name:'학자의 안경',icon:'👓',rarity:'common',desc:'적의 다음 행동을 2개까지 보여준다',stats:{flags:{seeTwo:true}}},
+};
+const SLOTS = ['weapon','armor','acc1','acc2'];
+const SLOT_NAME = {weapon:'무기',armor:'방어구',acc1:'악세사리 1',acc2:'악세사리 2'};
+const TYPE_NAME = {cons:'소모품',weapon:'무기',armor:'방어구',acc:'악세사리'};
+
+// 연금술 숨은 레시피 (순서 무관)
+const RECIPES = [
+  {a:'potion',b:'potion',out:'hipotion',hint:'물약 두 병을 한데 끓이면 더 진해지지.'},
+  {a:'ether',b:'ether',out:'candy',hint:'마나 물약을 졸이면 단단한 사탕이 된다더군.'},
+  {a:'fire_dust',b:'thunder_dust',out:'bomb',hint:'불과 번개 가루는... 절대 같이 흔들지 마.'},
+  {a:'wine',b:'rat',out:'berserk',hint:'술에 역병쥐를 담그면 전사들이 미쳐 날뛰는 술이 돼.'},
+  {a:'banshee',b:'ice_dust',out:'frost_perfume',hint:'벤시의 눈물은 얼음과 만나면 향기가 나지.'},
+  {a:'potion',b:'wine',out:'giant',hint:'거인의 심장? 물약과 포도주로 흉내는 낼 수 있어.'},
+  {a:'glow',b:'potion',out:'angel',hint:'빛나는 버섯은 회복약을 신성하게 바꾼다네.'},
+  {a:'ink',b:'ice_dust',out:'mirror',hint:'그림자를 얼리면 거울이 되는 법이야.'},
+  {a:'dagger',b:'rat',out:'venom_fang',hint:'단검에 역병쥐 꼬리를 문지르면... 후후.'},
+  {a:'leather',b:'ice_dust',out:'ice_armor',hint:'가죽 갑옷을 얼음 가루에 재워 봐.'},
+  {a:'leather',b:'ink',out:'cloak',hint:'가죽을 그림자 잉크로 물들이면 망토가 되지.'},
+  {a:'greatsword',b:'dark_dust',out:'cursed_sword',hint:'대검에 암흑을 먹이면 피를 원하게 돼.'},
+  {a:'greatsword',b:'holy_dust',out:'holy_mace',hint:'대검을 신성으로 녹여 철퇴를 만든 성기사가 있었지.'},
+  {a:'angel',b:'coin',out:'phoenix',hint:'죽음을 되돌리는 두 물건을 합치면 불사의 깃털이...'},
+  {a:'junk',b:'junk',out:'coin',hint:'실패작도 두 개면... 가끔 동전이 나오더라.'},
+];
+
+const NPCS = {
+  merchant:{name:'떠돌이 상인 모르크',icon:'🎒',lines:['어서 와. 살아있는 손님은 오랜만이군.','값은 깎아줄 수 없어. 목숨값이니까.','그 장비로 바르굼을 만나겠다고? 하하.']},
+  alchemist:{name:'수상한 연금술사 이브',icon:'⚗',cost:15,lines:['아무거나 두 개. 솥에 넣어봐. 무엇이 나올지는 나도 몰라.','실패해도 환불은 없어. 그게 연금술이야.']},
+};
+
+/* 이벤트: choices[].run(api) → {text, battle?:[몬스터ID], elite?} 를 돌려줍니다.
+   check('agi', 14) 같은 판정은 주사위(1~10) + 스탯 ≥ 난이도 */
+const EVENTS = [
+  {id:'altar',title:'피에 젖은 제단',icon:'🩸',
+    text:'검게 말라붙은 제단이 있다. 그릇 바닥에서 누군가 속삭인다. <i>"조금만... 아주 조금만 나눠다오."</i>',
+    choices:[
+      {label:'피를 바친다',hint:'HP -20, 무언가를 얻는다',run(){ hurt(20); const r=pick([['mag',3,'마력'],['atk',3,'공격력'],['maxMana',10,'최대 마나'],['maxHp',12,'최대 HP']]); gainBonus(r[0],r[1]);
+        return {text:`손바닥을 그어 피를 떨군다. 제단이 붉게 빛난다.<br><b class="l-good">${r[2]} +${r[1]}</b> (이번 모험 동안)`}; }},
+      {label:'무릎 꿇고 기도한다',hint:'운에 맡긴다',run(){ const x=Math.random();
+        if(x<.5){ gainBonus('maxHp',10); healField(20); return {text:'따뜻한 빛이 감싼다. <b class="l-good">최대 HP +10, HP 20 회복</b>'}; }
+        if(x<.8) return {text:'아무 대답도 없다. 시간만 흘렀다.'};
+        RUN.nextBattle.push(['weak',3]); return {text:'속삭임이 비웃는다. <b class="l-warn">저주: 다음 전투에서 3턴 약화</b>'}; }},
+      {label:'제단을 부순다',hint:'공격력 판정 16',run(){ const c=check('atk',16);
+        if(c.ok){ const g=gainGold(35); const it=gainItem('holy_dust'); return {text:`${c.text}<br>제단이 산산조각 난다. 틈에서 <b class="l-gold">골드 ${g}</b>와 ${it}을 찾았다.`}; }
+        return {text:`${c.text}<br>망치질 소리에 무덤 속 것들이 깨어났다!`, battle:['skeleton','skeleton']}; }},
+      {label:'지나친다',run(){ return {text:'속삭임이 등 뒤로 멀어진다.'}; }},
+    ]},
+  {id:'well',title:'이끼 낀 우물',icon:'🪣',
+    text:'말라버린 우물 바닥에서 무언가 반짝인다. 벽에는 동전을 던진 흔적이 가득하다.',
+    choices:[
+      {label:'손을 넣어 더듬는다',hint:'민첩 판정 14',run(){ const c=check('agi',14);
+        if(c.ok){ const g=gainGold(ri(30,50)); let t=`${c.text}<br>재빠르게 낚아챘다! <b class="l-gold">골드 ${g}</b>`; if(chance(40)) t+=`, ${gainItem(randomItem({type:'cons'}))}`; return {text:t}; }
+        hurt(12); return {text:`${c.text}<br>무언가 손가락을 물었다! <b class="l-warn">HP -12</b>`}; }},
+      {label:'동전을 던져 소원을 빈다',hint:'골드 10',cond:()=>RUN.gold>=10,run(){ RUN.gold-=10; const x=Math.random();
+        if(x<.3){ healField(9999); return {text:'물소리가 들린다. <b class="l-good">HP 전부 회복</b>'}; }
+        if(x<.55){ P.mana=pStats().maxMana; return {text:'푸른 빛이 차오른다. <b class="l-good">마나 전부 회복</b>'}; }
+        if(x<.75){ gainBonus('diceBonus',1); return {text:'동전이 앞면으로 떨어진 소리가 났다. <b class="l-good">행운: 이번 모험 동안 주사위 +1</b>'}; }
+        return {text:'동전이 바닥에 떨어지는 소리조차 나지 않는다.'}; }},
+      {label:'지나친다',run(){ return {text:'우물은 아무 말도 하지 않는다.'}; }},
+    ]},
+  {id:'corpse',title:'쓰러진 모험가',icon:'⚰',
+    text:'나보다 먼저 온 모험가가 벽에 기대 쓰러져 있다. 배낭이 아직 불룩하다. 손가락이... 방금 움직였나?',
+    choices:[
+      {label:'소지품을 뒤진다',hint:'뭔가 있을 것이다',run(){
+        if(chance(30)) return {text:'배낭에 손을 대는 순간 시체가 눈을 떴다!', battle:['skeleton'], elite:true};
+        const g=gainGold(ri(15,30)); const it=gainItem(randomItem({})); return {text:`쓸만한 것을 챙겼다. <b class="l-gold">골드 ${g}</b>, ${it}`}; }},
+      {label:'정중히 묻어준다',hint:'시간이 걸린다',run(){ gainBonus('maxHp',6); let t='돌무더기를 쌓아 무덤을 만들었다. 마음이 단단해진다. <b class="l-good">최대 HP +6</b>';
+        if(chance(25)) t+=`<br>무덤 속에서 ${gainItem('coin')}이 굴러 나왔다.`; return {text:t}; }},
+      {label:'지나친다',run(){ return {text:'눈을 마주치지 않고 지나갔다.'}; }},
+    ]},
+  {id:'mushroom',title:'빛나는 버섯 군락',icon:'🍄',
+    text:'동굴 벽 가득 푸르스름한 버섯이 피어 있다. 향긋하면서도 어딘가 불길한 냄새.',
+    choices:[
+      {label:'하나 먹어본다',hint:'무슨 일이 생길지 모른다',run(){ const x=ri(1,5);
+        if(x===1){ healField(30); return {text:'달콤하다! <b class="l-good">HP 30 회복</b>'}; }
+        if(x===2){ hurt(15); return {text:'배가 뒤틀린다. <b class="l-warn">HP -15</b>'}; }
+        if(x===3){ gainBonus('mag',2); return {text:'눈앞에 별이 보인다. 머리가 맑아진다. <b class="l-good">마력 +2</b>'}; }
+        if(x===4){ gainBonus('maxHp',8); return {text:'몸이 단단해지는 느낌. <b class="l-good">최대 HP +8</b>'}; }
+        return {text:`버섯이 말을 건다. 한참 수다를 떨었다. <b class="l-good">EXP +15</b>`, exp:15}; }},
+      {label:'조심스럽게 채집한다',hint:'마력 판정 12',run(){ const c=check('mag',12);
+        if(c.ok) return {text:`${c.text}<br>포자를 건드리지 않고 땄다. ${gainItem('glow')}, ${gainItem('glow')}`};
+        hurt(8); return {text:`${c.text}<br>포자가 터졌다! <b class="l-warn">HP -8</b>. 그래도 ${gainItem('glow')}은 건졌다.`}; }},
+      {label:'지나친다',run(){ return {text:'버섯들이 아쉬운 듯 반짝인다.'}; }},
+    ]},
+  {id:'goblin_cage',title:'갇힌 고블린 상인',icon:'🪤',
+    text:'녹슨 우리 안에서 고블린이 손을 비빈다. "꺼내줘! 꺼내주면 좋은 거 줄게! 진짜야!"',
+    choices:[
+      {label:'풀어준다',hint:'믿어볼까?',run(){ if(chance(80)){ const it=gainItem(randomItem({minRarity:'rare'})); return {text:`고블린이 품에서 무언가를 꺼내 던지고 달아났다. ${it}`}; }
+        return {text:'고블린이 혀를 내밀고 달아났다. 아무것도 없었다.'}; }},
+      {label:'협박해서 털어낸다',hint:'공격력 판정 15',run(){ const c=check('atk',15);
+        if(c.ok){ const g=gainGold(ri(45,65)); return {text:`${c.text}<br>고블린이 벌벌 떨며 주머니를 비웠다. <b class="l-gold">골드 ${g}</b>`}; }
+        return {text:`${c.text}<br>고블린이 비명을 지르자 동료들이 몰려왔다!`, battle:['goblin','goblin']}; }},
+      {label:'무시한다',run(){ return {text:'"치사한 놈!" 욕설이 따라온다.'}; }},
+    ]},
+  {id:'dice_skull',title:'주사위 치는 해골',icon:'🎲',
+    text:'테이블에 앉은 해골이 주사위를 굴리고 있다. "한 판 하겠나? 나는 언제나 정정당당하지. 대체로."',
+    choices:[
+      {label:'골드 30을 건다',hint:'주사위 + 민첩/4 대결',cond:()=>RUN.gold>=30,run(){ const me=d10()+Math.floor(pStats().agi/4), sk=d10()+2;
+        const t=`<span class="roll">나 🎲 ${me} vs 해골 🎲 ${sk}</span><br>`;
+        if(me>sk){ const g=gainGold(60,true); return {text:t+`해골이 턱을 덜그럭거린다. <b class="l-gold">골드 +${g}</b>`}; }
+        RUN.gold-=30; return {text:t+'"다음에 또 오게." <b class="l-warn">골드 -30</b>'}; }},
+      {label:'영혼을 건다',hint:'이기면 장비, 지면 최대 HP -10',run(){ const me=d10()+Math.floor(pStats().agi/4), sk=d10()+3;
+        const t=`<span class="roll">나 🎲 ${me} vs 해골 🎲 ${sk}</span><br>`;
+        if(me>sk) return {text:t+`해골이 아끼던 물건을 내민다. ${gainItem(randomItem({gear:true,minRarity:'rare'}))}`};
+        gainBonus('maxHp',-10); P.hp=Math.min(P.hp,pStats().maxHp); return {text:t+'무언가가 몸에서 빠져나간다. <b class="l-warn">최대 HP -10</b>'}; }},
+      {label:'거절한다',run(){ return {text:'"겁쟁이." 해골이 다시 혼자 주사위를 굴린다.'}; }},
+    ]},
+  {id:'dummy',title:'낡은 훈련용 허수아비',icon:'🎯',
+    text:'누군가 이 깊은 곳에 훈련장을 만들어 두었다. 허수아비에 칼자국이 가득하다.',
+    choices:[
+      {label:'땀 흘려 수련한다',hint:'HP -10, EXP 획득',run(){ hurt(10); const x=12+RUN.floor*6; return {text:`한참을 휘둘렀다. 팔이 저리다. <b class="l-warn">HP -10</b>, <b class="l-good">EXP +${x}</b>`, exp:x}; }},
+      {label:'허수아비를 뒤진다',hint:'운',run(){ if(chance(50)) return {text:`허수아비 속에 숨겨둔 ${gainItem(randomItem({type:'cons'}))}을 찾았다.`}; return {text:'짚만 나왔다.'}; }},
+      {label:'지나친다',run(){ return {text:'허수아비가 고개를 떨군다.'}; }},
+    ]},
+];
+
+const PERKS = {
+  might:{name:'근력 단련',icon:'💪',desc:'공격력 +3',stats:{atk:3}},
+  arcane:{name:'비전 연구',icon:'📖',desc:'마력 +3',stats:{mag:3}},
+  iron:{name:'강철 피부',icon:'🪨',desc:'방어력 +2',stats:{def:2}},
+  swift:{name:'바람걸음',icon:'💨',desc:'민첩 +2',stats:{agi:2}},
+  vigor:{name:'강인함',icon:'❤',desc:'최대 HP +20 (즉시 회복)',stats:{maxHp:20},onPick(){ P.hp+=20; }},
+  well:{name:'깊은 샘',icon:'💧',desc:'최대 마나 +12',stats:{maxMana:12},onPick(){ P.mana+=12; }},
+  leech:{name:'흡혈 본능',icon:'🧛',desc:'준 피해의 8% 흡혈',stats:{lifesteal:.08}},
+  eye:{name:'날카로운 눈',icon:'👁',desc:'치명타 확률 +10%',stats:{crit:10}},
+  brutal:{name:'잔혹함',icon:'🔪',desc:'치명타 피해 +40%',stats:{critDmg:.4}},
+  medit:{name:'명상',icon:'🧘',desc:'턴마다 마나 회복 +2',stats:{manaRegen:2}},
+  luck:{name:'행운의 별',icon:'⭐',desc:'행동 주사위 최소값 +2',stats:{diceMin:2}},
+  venomist:{name:'독술 연구',icon:'☠',desc:'공격 시 20% 확률 중독',stats:{poisonOnHit:20}},
+  pyro:{name:'불꽃 손길',icon:'🔥',desc:'공격 시 20% 확률 화상',stats:{burnOnHit:20}},
+  medic:{name:'응급처치',icon:'🩹',desc:'전투 승리 시 최대 HP 12% 회복',stats:{postHeal:.12}},
+  riposte:{name:'반격의 기술',icon:'↩',desc:'방어 중 공격받으면 공격력 70%로 반격',stats:{riposte:.7}},
+  greedy:{name:'보물 사냥꾼',icon:'💰',desc:'골드 획득 +25%',stats:{goldMul:.25}},
+  opener:{name:'선수필승',icon:'🏁',desc:'전투 첫 라운드 주사위 +6',stats:{firstDice:6}},
+  thick:{name:'두꺼운 가죽',icon:'🐢',desc:'받는 피해 -8%',stats:{dmgTakenMul:-.08}},
+  efficient:{name:'효율적인 주문',icon:'📜',desc:'스킬 마나 -15%',stats:{skillCostMul:-.15}},
+  afterimage:{name:'잔상',icon:'👥',desc:'회피 +6%',stats:{evade:6}},
+  spellblade:{name:'마검',icon:'✨',desc:'기본 공격에 마력 50% 추가 피해',stats:{spellblade:.5},cls:['mage','warrior']},
+  pockets:{name:'큰 주머니',icon:'👝',desc:'소모품 슬롯 +1',stats:{consSlots:1}},
+};
+
+/* =====================================================================
+   엔진
+   ===================================================================== */
+const KEY_META='abyss_stairs_meta_v1', KEY_RUN='abyss_stairs_run_v1';
+let META, RUN=null, B=null, P=null, UID=0;
+const $=s=>document.querySelector(s);
+const rand=(a,b)=>a+Math.random()*(b-a);
+const ri=(a,b)=>Math.floor(rand(a,b+1));
+const chance=p=>Math.random()*100<p;
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const d10=()=>ri(1,10);
+function wpick(arr,wf){ const tot=arr.reduce((s,x)=>s+wf(x),0); let r=Math.random()*tot; for(const x of arr){ r-=wf(x); if(r<=0) return x; } return arr[arr.length-1]; }
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+const sleep=ms=>new Promise(r=>setTimeout(r, ms*(META&&META.fast?.45:1)));
+function josa(w,pair){ if(!pair.includes('/')) return pair; const [a,b]=pair.split('/'); const ch=w.charCodeAt(w.length-1); if(ch<0xAC00||ch>0xD7A3) return b; const jong=(ch-0xAC00)%28; if(pair==='으로/로') return (jong&&jong!==8)?a:b; return jong?a:b; }
+const nm=(c,j)=>`<b class="${c.isPlayer?'n-p':'n-e'}">${c.name}</b>${j?josa(c.name,j):''}`;
+const elTag=el=>el?`<span class="el-${el}">${ELEMENTS[el].icon}${ELEMENTS[el].name}</span>`:'';
+const itName=id=>{ const it=ITEMS[id]; return `<b class="rar-${it.rarity}">${it.icon} ${it.name}</b>`; };
+
+function defaultMeta(){ return {level:1,exp:0,runs:0,best:0,kills:0,recipes:[],fast:false}; }
+function loadMeta(){ try{ return Object.assign(defaultMeta(), JSON.parse(localStorage.getItem(KEY_META))||{}); }catch(e){ return defaultMeta(); } }
+function saveMeta(){ try{ localStorage.setItem(KEY_META,JSON.stringify(META)); }catch(e){} }
+function saveRun(){ try{ if(RUN) localStorage.setItem(KEY_RUN,JSON.stringify(RUN)); else localStorage.removeItem(KEY_RUN); }catch(e){} }
+function loadRun(){ try{ return JSON.parse(localStorage.getItem(KEY_RUN)); }catch(e){ return null; } }
+const expNeed=lv=>20+(lv-1)*12;
+const floorDef=()=>FLOORS[Math.min(RUN.floor,FLOORS.length)-1];
+const floorScale=()=>1+0.5*(RUN.floor-1);
+
+/* ---------- 스탯 ---------- */
+function baseS(){ return {atk:0,def:0,agi:0,mag:0,maxHp:0,maxMana:0,crit:5,critDmg:1.6,evade:0,lifesteal:0,manaRegen:2,diceBonus:0,diceMin:1,hits:1,hitMult:1,armorPen:0,stunChance:0,poisonOnHit:0,burnOnHit:0,bleedOnHit:0,thorns:0,skillCostMul:1,skillRefund:0,goldMul:1,expMul:1,dmgTakenMul:1,dmgMul:1,selfDmg:0,startShield:0,phoenix:0,healMul:1,consSlots:4,postHeal:0,riposte:0,firstDice:0,spellblade:0,elemBonus:0,dropBonus:0,immune:{},vsTag:{},flags:{},element:null}; }
+function addStats(s,add,n=1){ for(const k in add){ if(k==='immune'||k==='vsTag'||k==='flags') Object.assign(s[k],add[k]); else s[k]=(s[k]||0)+add[k]*n; } }
+function statusMods(c,s){ const st=c.st;
+  if(st.slow) s.agi*=.6;
+  if(st.frenzy){ s.atk*=1.4; s.agi*=1.3; s.dmgTakenMul*=1.25; }
+  if(st.guard) s.def+=st.guard.pow||6;
+  if(st.burn) s.def-=2;
+  if(st.weak) s.dmgMul*=.7;
+  if(st.defend) s.dmgTakenMul*=.5;
+  if(st.enrage) s.atk*=1.5;
+}
+function pStats(){
+  const c=CLASSES[RUN.cls], s=baseS(), late=[];
+  addStats(s,c.base);
+  const L=META.level-1; for(const k in c.growth) s[k]+=Math.floor(L*c.growth[k]);
+  s.maxHp+=L*2; s.maxMana+=L;
+  addStats(s,RUN.bonus);
+  if(c.passive.stats) addStats(s,c.passive.stats); if(c.passive.late) late.push(c.passive.late);
+  for(const id in RUN.perks){ const pk=PERKS[id]; if(pk.stats) addStats(s,pk.stats,RUN.perks[id]); if(pk.late) late.push(pk.late); }
+  for(const sl of SLOTS){ const id=RUN.equip[sl]; if(!id) continue; const it=ITEMS[id]; if(it.stats) addStats(s,it.stats); if(it.late) late.push(it.late); if(it.element) s.element=it.element; }
+  if(B){ if(B.giant){ s.maxHp*=1.5; s.agi*=.7; } if(B.berserk) s.atk+=Math.max(0,(s.maxHp-P.hp))/8; }
+  statusMods(P,s);
+  for(const f of late) f(s);
+  for(const k of ['atk','def','agi','mag','maxHp','maxMana']) s[k]=Math.max(0,Math.round(s[k]));
+  s.maxHp=Math.max(1,s.maxHp); s.skillCostMul=Math.max(.2,s.skillCostMul); s.dmgTakenMul=Math.max(.2,s.dmgTakenMul);
+  return s;
+}
+function eStats(e){ const s={atk:e.atk,def:e.def,agi:e.agi,mag:e.mag,crit:5,critDmg:1.5,evade:e.evade||0,dmgMul:1,dmgTakenMul:1,maxHp:e.maxHp,armorPen:0,flags:{},immune:e.immune||{}}; statusMods(e,s); return s; }
+const stats=c=>c.isPlayer?pStats():eStats(c);
+const maxHpOf=c=>c.isPlayer?pStats().maxHp:c.maxHp;
+const alive=()=>B?B.enemies.filter(e=>e.hp>0):[];
+function elementMult(a,d){ if(!a||!d) return 1; if(ELEMENT_BEATS[a]===d) return 1.5; if(a===d||ELEMENT_BEATS[d]===a) return .7; return 1; }
+
+/* ---------- 효과 표시 ---------- */
+function cardOf(c){ return document.getElementById('cb-'+c.uid); }
+function popup(c,text,cls){ const el=cardOf(c); if(!el) return; const r=el.getBoundingClientRect(); const d=document.createElement('div'); d.className='pop '+cls; d.textContent=text;
+  d.style.left=(r.left+r.width/2+rand(-14,14))+'px'; d.style.top=(r.top+r.height*.28)+'px'; $('#fx').appendChild(d); setTimeout(()=>d.remove(),1000); }
+function shake(c){ const el=cardOf(c); if(!el) return; el.classList.remove('shake','flash'); void el.offsetWidth; el.classList.add('shake','flash'); }
+function shakeScreen(){ const m=$('#main'); m.classList.remove('screen-shake'); void m.offsetWidth; m.classList.add('screen-shake'); }
+function log(html){ if(!B) return; B.log.push(html); const bl=$('#blog'); if(bl){ const p=document.createElement('p'); p.innerHTML=html; bl.appendChild(p); while(bl.children.length>80) bl.firstChild.remove(); bl.scrollTop=bl.scrollHeight; } }
+function logRound(html){ if(!B) return; const bl=$('#blog'); if(bl){ const p=document.createElement('p'); p.className='rd'; p.innerHTML=html; bl.appendChild(p); bl.scrollTop=bl.scrollHeight; } }
+function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.innerHTML=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2200); }
+function toastIfField(msg){ if(!B) toast(msg); }
+
+/* ---------- 상태이상 ---------- */
+function addStatus(c,id,turns,data={}){
+  if(c.hp<=0) return false;
+  const def=STATUSES[id];
+  const imm=c.isPlayer?pStats().immune:(c.immune||{});
+  if(imm[id]){ popup(c,'면역','miss'); log(`<span class="l-sys">${nm(c,'은/는')} ${def.name}에 면역이다.</span>`); return false; }
+  if(!c.isPlayer&&c.resist&&c.resist[id]&&chance(c.resist[id])){ popup(c,'저항','miss'); log(`<span class="l-sys">${nm(c,'이/가')} ${def.name}에 저항했다.</span>`); return false; }
+  const cur=c.st[id];
+  if(id==='bleed') c.st[id]={t:Math.max(turns,cur?cur.t:0),stack:Math.min(10,(cur?cur.stack:0)+(data.stack||1))};
+  else if(id==='toxic') c.st[id]={t:Math.max(turns,cur?cur.t:0),n:cur?cur.n:1};
+  else c.st[id]=Object.assign({},cur||{},data,{t:Math.max(turns,cur?cur.t:0)});
+  if(B&&B.cur===c) c.st[id].fresh=true;
+  if(B){ popup(c,def.icon+def.name,'st'); log(`<span class="l-st">${nm(c,'이/가')} ${def.icon}${def.name}${id==='bleed'?` (${c.st[id].stack}중첩)`:''} 상태가 되었다.</span>`); }
+  return true;
+}
+function cleanse(c){ for(const id in c.st) if(STATUSES[id].bad) delete c.st[id]; }
+function tickStart(c){
+  for(const id of Object.keys(c.st)){ const st=c.st[id]; if(STATUSES[id].tick==='start'){ st.t--; if(st.t<=0) delete c.st[id]; } }
+  const mx=maxHpOf(c);
+  const dot=(id,dmg,txt)=>{ if(!c.st[id]||c.hp<=0) return; dmg=Math.max(1,Math.round(dmg)); applyDamage(c,dmg,{dot:true}); log(`${nm(c,'이/가')} ${txt} <span class="l-dmg">${dmg}</span> 피해`); };
+  dot('poison',Math.max(2,mx*.05),'☠독으로');
+  if(c.st.toxic){ dot('toxic',3*c.st.toxic.n*Math.sqrt(floorScale()),'🧪맹독으로'); if(c.st.toxic) c.st.toxic.n++; }
+  if(c.st.bleed) dot('bleed',2*c.st.bleed.stack,'🩸출혈로');
+  dot('burn',Math.max(3,mx*.06),'🔥화상으로');
+}
+function tickEnd(c){ for(const id of Object.keys(c.st)){ const st=c.st[id]; if(STATUSES[id].tick!=='end') continue; if(st.fresh){ st.fresh=false; continue; } st.t--; if(st.t<=0) delete c.st[id]; } }
+
+/* ---------- 피해 / 회복 ---------- */
+function applyDamage(t,dmg,o={}){
+  let d=dmg;
+  if(t.isPlayer&&B){
+    if(B.shield>0){ const a=Math.min(B.shield,d); B.shield-=a; d-=a; if(a) popup(t,'🛡'+a,'shield'); }
+    if(d>0&&t.st.barrier&&P.mana>0){ const ab=Math.min(d,P.mana*2); P.mana-=Math.ceil(ab/2); d-=ab; if(ab) popup(t,'🔷'+ab,'mana'); }
+  }
+  t.hp=Math.max(0,t.hp-d);
+  if(d>0&&t.st.sleep&&!o.dot){ delete t.st.sleep; log(`<span class="l-sys">${nm(t,'이/가')} 깨어났다!</span>`); }
+  if(d>0){ popup(t,(o.crit?'💥':'')+d,o.crit?'crit':'dmg'); shake(t); }
+  if(t.hp<=0) onDeath(t);
+  return d;
+}
+function heal(c,amt){
+  if(c.st&&c.st.noheal){ if(B){ popup(c,'회복 불가','miss'); log(`<span class="l-sys">${nm(c,'은/는')} 광휘 때문에 회복하지 못한다.</span>`); } return 0; }
+  if(c.isPlayer) amt*=pStats().healMul;
+  const h=Math.max(0,Math.min(maxHpOf(c)-c.hp,Math.round(amt))); c.hp+=h; if(h>0&&B) popup(c,'+'+h,'heal'); return h;
+}
+function healMsg(c,amt){ const h=heal(c,amt); if(B) log(`${nm(c,'이/가')} <span class="l-heal">${h}</span> 회복했다.`); else toast(`HP <b class="l-good">+${h}</b>`); }
+function healField(n){ heal(P,n); }
+function gainMana(n,msg){ const mx=pStats().maxMana; const g=Math.max(0,Math.min(mx-P.mana,Math.round(n))); P.mana+=g; if(msg){ if(B){ popup(P,'+'+g+' MP','mana'); log(`${nm(P,'이/가')} 마나를 <span class="l-heal">${g}</span> 회복했다.`); } else toast(`마나 <b class="l-good">+${g}</b>`); } return g; }
+function imbue(el){ addStatus(P,'imbue',99,{el}); log(`무기에 ${elTag(el)} 기운이 깃든다.`); }
+
+function strike(src,tgt,raw,o={}){
+  if(!B||tgt.hp<=0||src.hp<=0) return {hit:false};
+  const S=stats(src), T=stats(tgt), type=o.type||'phys';
+  // 회피
+  if(!o.noEvade){
+    if(tgt.st.stealth||tgt.st.smoke){ popup(tgt,'회피','miss'); log(`<span class="l-miss">${nm(tgt,'이/가')} 그림자 속에서 공격을 흘려보냈다.</span>`); return {hit:false,miss:true}; }
+    let ev=clamp(4+(T.agi-S.agi)*1.5+(T.evade||0),0,60);
+    if(tgt.st.sleep||tgt.st.stun) ev=0;
+    if(chance(ev)){ popup(tgt,'MISS','miss'); log(`<span class="l-miss">${nm(src,'의')} 공격이 빗나갔다. (회피 ${Math.round(ev)}%)</span>`); return {hit:false,miss:true}; }
+  }
+  let dmg=raw*rand(.9,1.1), tags=[];
+  const el=o.element||null;
+  if(el){
+    if(tgt.isPlayer&&el==='fire'&&T.flags.fireImmune){ popup(tgt,'불 무효','miss'); log(`<span class="l-sys">용비늘이 불길을 막아냈다.</span>`); return {hit:false}; }
+    let em=elementMult(el,tgt.element);
+    if(em>1&&src.isPlayer&&S.elemBonus) em+=S.elemBonus;
+    if(em>1) tags.push(`<span class="l-crit">상성!</span>`); else if(em<1) tags.push('<span class="l-miss">저항</span>');
+    dmg*=em;
+  }
+  if(src.isPlayer&&S.vsTag&&tgt.tags) for(const tg of tgt.tags) if(S.vsTag[tg]){ dmg*=S.vsTag[tg]; tags.push('<span class="l-crit">특효!</span>'); }
+  let crit=false;
+  if(type!=='true'){ const cc=(o.forceCrit||src.st.stealth)?100:S.crit+S.agi*.5; crit=chance(cc); if(crit){ dmg*=S.critDmg; tags.unshift('<span class="l-crit">치명타!</span>'); } }
+  if(type!=='true'){ let def=T.def; const pen=(o.armorPen||0)+(src.isPlayer&&type==='phys'?S.armorPen:0); def*=1-Math.min(1,pen); if(type==='magic') def*=.5; dmg*=20/(20+Math.max(0,def)); }
+  dmg*=S.dmgMul*T.dmgTakenMul;
+  dmg=Math.max(1,Math.round(dmg));
+  const dealt=applyDamage(tgt,dmg,{crit});
+  log(`${o.label?o.label+' ':''}→ ${nm(tgt)}에게 ${el?elTag(el)+' ':''}<span class="l-dmg">${dmg}</span> 피해 ${tags.join(' ')}`);
+  // 흡혈
+  const ls=(src.isPlayer?S.lifesteal:0)+(o.lifesteal||0);
+  if(ls>0&&dealt>0&&src.hp>0){ const h=heal(src,dealt*ls); if(h) log(`${nm(src,'이/가')} 피를 빨아 <span class="l-heal">${h}</span> 회복`); }
+  // 내 공격의 부가 효과
+  if(src.isPlayer&&!o.noProc&&tgt.hp>0){
+    if(S.poisonOnHit&&chance(S.poisonOnHit)) addStatus(tgt,'poison',3);
+    if(P.st.venom) addStatus(tgt,'poison',3);
+    if(S.burnOnHit&&chance(S.burnOnHit)) addStatus(tgt,'burn',2);
+    if(S.bleedOnHit&&chance(S.bleedOnHit)) addStatus(tgt,'bleed',3,{stack:1});
+    if(S.stunChance&&chance(S.stunChance)) addStatus(tgt,'stun',1);
+  }
+  // 맞은 쪽(나)의 반응
+  if(tgt.isPlayer&&src.hp>0&&!o.noProc){
+    if(type==='phys'&&T.thorns&&dealt>0){ const th=Math.max(1,Math.round(dmg*T.thorns)); applyDamage(src,th); log(`🌵가시가 ${nm(src)}에게 <span class="l-dmg">${th}</span> 반사`); }
+    if(T.flags.chillOnHit&&src.hp>0&&chance(50)) addStatus(src,'slow',2);
+    if(tgt.st.defend&&T.riposte&&src.hp>0&&tgt.hp>0) strike(P,src,T.atk*T.riposte,{type:'phys',noProc:true,noEvade:true,label:'↩반격!'});
+  }
+  return {hit:true,dmg:dealt,crit};
+}
+
+function onDeath(c){
+  if(c.isPlayer){
+    const s=pStats();
+    if(s.phoenix&&!B.phoenixUsed){ B.phoenixUsed=true; c.hp=Math.round(s.maxHp*.4); popup(c,'🔥부활','heal'); log(`<span class="l-crit">불사조 깃털이 타오르며 다시 일어섰다!</span>`); return; }
+    const ci=RUN.cons.indexOf('coin');
+    if(ci>=0){ RUN.cons.splice(ci,1); c.hp=1; popup(c,'🪙부활','heal'); log(`<span class="l-crit">망자의 동전이 바스러지며 숨이 돌아온다! (HP 1)</span>`); cleanse(c); return; }
+    return;
+  }
+  log(`<span class="l-good">✝ ${nm(c,'을/를')} 쓰러뜨렸다!</span>`);
+  B.exp+=c.exp; B.gold+=ri(c.gold[0],c.gold[1])+(c.stolen||0); RUN.kills++; META.kills++;
+  if(c.stolen) log(`<span class="l-gold">훔쳐간 골드 ${c.stolen}을 되찾았다.</span>`);
+  B.drops+= c.boss?0:(c.elite?1:0);
+}
+
+/* ---------- 몬스터 ---------- */
+function makeMonster(id,elite){
+  const d=MONSTERS[id], sc=floorScale(), em=elite?1:0;
+  const m={uid:'e'+(++UID),id,name:(elite?'정예 ':'')+d.name,icon:d.icon,boss:!!d.boss,elite:!!elite,
+    maxHp:Math.round(d.hp*sc*(elite?1.7:1)),atk:Math.round(d.atk*sc*(elite?1.3:1)),def:Math.round(d.def*(1+.35*(RUN.floor-1))+em*2),
+    agi:d.agi+(RUN.floor-1)+em,mag:Math.round(d.mag*sc*(elite?1.3:1)),element:d.element||null,tags:d.tags||[],immune:d.immune||{},resist:d.resist||{},evade:d.evade||0,
+    exp:Math.round(d.exp*sc*(elite?2.2:1)),gold:d.gold.map(g=>Math.round(g*sc*(elite?2:1))),st:{},intents:[],flags:{},last:null};
+  m.hp=m.maxHp; return m;
+}
+function pickIntent(e,prev){
+  const d=MONSTERS[e.id];
+  let opts=d.ai.filter(a=>(!a.cond||a.cond(e))&&!(a.once&&e.flags[a.id])&&!(a.noRepeat&&prev===a.id));
+  if(!opts.length) opts=[d.ai[0]];
+  return wpick(opts,a=>a.w||1);
+}
+function refillIntents(e){ while(e.intents.length<2){ const prev=e.intents.length?e.intents[e.intents.length-1].id:e.last; const it=pickIntent(e,prev); if(it.once) e.flags[it.id]=true; e.intents.push(it); } }
+function intentHTML(e,it,next){
+  let icon='⚔',cls=next?'intent next':'intent',num='';
+  if(it.type==='attack'){ const S=eStats(e), ps=pStats(); const el=it.element||null;
+    let d=(it.magic?S.mag:S.atk)*it.mult*S.dmgMul; d*=20/(20+Math.max(0,ps.def*(it.magic?.5:1))); d*=ps.dmgTakenMul;
+    num=` <span class="num">~${Math.max(1,Math.round(d))}${it.hits>1?'×'+it.hits:''}</span>`; if(it.heavy){ icon='💥'; cls+=' heavy'; } if(el) icon=ELEMENTS[el].icon; }
+  else if(it.type==='buff') icon='⬆'; else if(it.type==='debuff') icon='⬇'; else if(it.type==='summon') icon='☠'; else if(it.type==='heal') icon='✚'; else if(it.type==='steal') icon='💰';
+  const st=it.status?` <span class="l-st">${STATUSES[it.status[0]].icon}</span>`:'';
+  return `<div class="${cls}">${next?'다음: ':''}${icon} ${it.text||it.name}${num}${st}</div>`;
+}
+function genEncounter(){
+  const F=floorDef(); const budget=1+RUN.step*.32+(RUN.floor-1)*.4; const ids=[]; let used=0;
+  const pool=Object.entries(F.pool);
+  while(ids.length<3){ const cand=pool.filter(([id])=>used+MONSTERS[id].cost<=budget+.25||ids.length===0); if(!cand.length) break; const [id]=wpick(cand,x=>x[1]); ids.push(id); used+=MONSTERS[id].cost; if(used>=budget) break; }
+  return ids;
+}
+
+/* ---------- 전투 흐름 ---------- */
+function startBattle(ids,opt={}){
+  const enemies=ids.map((id,i)=>makeMonster(id,opt.elite&&i===0));
+  B={enemies,round:0,log:[],queue:[],qi:0,rolls:[],exp:0,gold:0,drops:0,shield:0,mode:'busy',cur:null,over:false,result:null,
+     boss:!!opt.boss,elite:!!opt.elite,giant:false,berserk:false,fleeSure:false,phoenixUsed:false,awaiting:null,pending:null};
+  P.st={}; P.cd={};
+  for(const e of enemies) refillIntents(e);
+  renderBattleShell();
+  runBattle().catch(err=>{ console.error(err); });
+}
+async function runBattle(){
+  const s=pStats();
+  log(`<span class="l-sys">${B.boss?'👑 보스 전투!':B.elite?'💀 정예 전투!':'⚔ 전투 시작!'} ${B.enemies.map(e=>nm(e)).join(', ')}</span>`);
+  if(s.startShield){ B.shield=Math.round(s.startShield*floorScale()); log(`🔮 수정 목걸이가 보호막 <b>${B.shield}</b>을 펼친다.`); }
+  if(s.flags.firstStealth) addStatus(P,'stealth',2);
+  for(const [id,t] of RUN.nextBattle) addStatus(P,id,t); RUN.nextBattle=[];
+  renderBattle();
+  if(s.flags.firstShot){ await sleep(400); const t=pick(alive()); log(`🏹 선제 사격!`); strike(P,t,s.atk*.8,{type:'phys',element:P.st.imbue?.el||s.element}); checkEnd(); renderBattle(); }
+  while(!B.over){
+    B.round++; rollInit(); renderBattle(); await sleep(550);
+    B.qi=0;
+    while(B.qi<B.queue.length&&!B.over){ const c=B.queue[B.qi++]; await takeTurn(c); checkEnd(); renderBattle(); }
+  }
+  await sleep(500);
+  finishBattle();
+}
+function rollInit(){
+  B.enemies=B.enemies.filter(e=>e.hp>0);
+  for(const el of document.querySelectorAll('.ecard')) if(!B.enemies.some(e=>'cb-'+e.uid===el.id)) el.remove();
+  const s=pStats();
+  const rolls=[P,...B.enemies].map(c=>{
+    const st=c.isPlayer?s:eStats(c); let die=d10(), die2=null, bonus=0;
+    if(c.isPlayer){ if(s.flags.diceTwice){ die2=d10(); } let best=Math.max(die,die2||0); best=Math.max(best,s.diceMin); bonus=s.diceBonus+(B.round===1?s.firstDice:0); return {c,agi:st.agi,die,die2,best,bonus,total:st.agi+best+bonus,extra:false}; }
+    return {c,agi:st.agi,die,best:die,bonus:0,total:st.agi+die,extra:false};
+  });
+  const me=rolls[0], others=rolls.slice(1);
+  const maxE=Math.max(...others.map(r=>r.total));
+  if(others.length&&me.total>=maxE*2) me.extra=true;
+  for(const r of others) if(r.total>=me.total*2) r.extra=true;
+  rolls.sort((a,b)=>b.total-a.total||(a.c.isPlayer?-1:b.c.isPlayer?1:b.agi-a.agi));
+  B.rolls=rolls; B.queue=[];
+  for(const r of rolls){ B.queue.push(r.c); if(r.extra) B.queue.push(r.c); }
+  logRound(`— ${B.round}라운드 — `+rolls.map(r=>`${r.c.isPlayer?'나':r.c.name} ${r.agi}+🎲${r.die2!=null?`${r.die}/${r.die2}`:r.die}${r.bonus?'+'+r.bonus:''}=<b>${r.total}</b>${r.extra?' ⚡추가 행동':''}`).join(' · '));
+}
+async function takeTurn(c){
+  if(c.hp<=0||B.over) return;
+  B.cur=c; renderBattle();
+  tickStart(c); checkEnd(); renderBattle();
+  if(B.over||c.hp<=0){ B.cur=null; return; }
+  if(c.isPlayer){
+    const s=pStats();
+    gainMana(s.manaRegen);
+    for(const k in P.cd) if(P.cd[k]>0) P.cd[k]--;
+    if(s.selfDmg){ const d=Math.round(s.selfDmg*Math.sqrt(floorScale())); applyDamage(P,d,{dot:true}); log(`<span class="l-warn">저주받은 검이 피를 빤다. HP -${d}</span>`); checkEnd(); if(B.over){ B.cur=null; return; } }
+  }
+  if(c.st.stun){ log(`<span class="l-st">${nm(c,'은/는')} 💫기절해 움직이지 못한다.</span>`); popup(c,'💫','st'); await sleep(450); }
+  else if(c.st.sleep){ log(`<span class="l-st">${nm(c,'은/는')} 💤잠들어 있다.</span>`); popup(c,'💤','st'); await sleep(450); }
+  else if(c.isPlayer) await playerTurn();
+  else { await sleep(380); await enemyAct(c); await sleep(320); }
+  tickEnd(c);
+  B.cur=null;
+}
+function checkEnd(){ if(!B||B.over) return; if(P.hp<=0){ B.over=true; B.result='lose'; } else if(!alive().length){ B.over=true; B.result='win'; } }
+
+function playerTurn(){ return new Promise(res=>{ B.awaiting=res; B.mode='main'; renderBattle(); }); }
+function uiAct(kind,arg){
+  if(!B||!B.awaiting) return;
+  if(kind==='back'){ B.mode='main'; B.pending=null; renderBattle(); return; }
+  if(kind==='skills'||kind==='items'){ B.mode=kind; renderBattle(); return; }
+  let target=null;
+  if(kind==='attack') target='one';
+  if(kind==='skill') target=SKILLS[arg].target;
+  if(kind==='item') target=ITEMS[RUN.cons[arg]].target||'self';
+  if(target==='one'&&alive().length>1){ B.mode='target'; B.pending={kind,arg}; renderBattle(); return; }
+  resolveAction({kind,arg,target:target==='one'?alive()[0]:null});
+}
+function uiTarget(uid){
+  if(!B) return;
+  const e=B.enemies.find(x=>x.uid===uid);
+  if(B.mode==='target'&&B.pending&&e&&e.hp>0){ const p=B.pending; B.pending=null; resolveAction({kind:p.kind,arg:p.arg,target:e}); return; }
+  if(e) showEnemyInfo(e);
+}
+async function resolveAction(a){
+  const res=B.awaiting; B.awaiting=null; B.mode='busy'; renderBattle();
+  const quick=await performAction(a);
+  checkEnd();
+  if(quick&&!B.over&&P.hp>0){ B.awaiting=res; B.mode='main'; renderBattle(); return; }
+  res();
+}
+async function performAction(a){
+  const s=pStats();
+  if(a.kind==='attack'){
+    const el=(P.st.imbue&&P.st.imbue.el)||s.element; const magic=s.flags.basicMagic;
+    log(`${nm(P,'의')} ${magic?'마력 화살':'공격'}!`);
+    for(let i=0;i<s.hits;i++){
+      let t=a.target; if(!t||t.hp<=0){ t=alive()[0]; if(!t) break; }
+      const raw=(magic?s.mag*.75+s.atk*.3:s.atk)*s.hitMult+(s.spellblade?s.mag*s.spellblade:0);
+      strike(P,t,raw,{type:magic?'magic':'phys',element:el});
+      renderBattle(); if(i<s.hits-1) await sleep(240);
+    }
+    delete P.st.stealth;
+  } else if(a.kind==='skill'){
+    const sk=SKILLS[a.arg], cost=skillCost(a.arg,s);
+    P.mana-=cost; if(sk.cd) P.cd[a.arg]=sk.cd+1;
+    log(`${nm(P,'의')} <b class="l-crit">${sk.name}</b>!`);
+    sk.run(a.target,s);
+    if(s.skillRefund){ const r=Math.floor(cost*s.skillRefund); if(r) gainMana(r); }
+    if(sk.target!=='self') delete P.st.stealth;
+    if(sk.target==='all') shakeScreen();
+    await sleep(200);
+    return !!sk.quick;
+  } else if(a.kind==='item'){
+    const id=RUN.cons[a.arg], it=ITEMS[id];
+    RUN.cons.splice(a.arg,1);
+    log(`${nm(P,'이/가')} ${itName(id)}${josa(it.name,'을/를')} 사용했다.`);
+    it.use(a.target);
+    await sleep(200);
+    return !!it.quick;
+  } else if(a.kind==='defend'){
+    addStatus(P,'defend',1); const g=gainMana(4); log(`${nm(P,'이/가')} 몸을 웅크려 방어한다. (마나 +${g})`);
+  } else if(a.kind==='flee'){
+    const avg=alive().reduce((t,e)=>t+eStats(e).agi,0)/Math.max(1,alive().length);
+    const ch=B.fleeSure?100:clamp(45+(s.agi-avg)*4,15,90);
+    if(chance(ch)){ log(`<span class="l-sys">달아나는 데 성공했다! (${Math.round(ch)}%)</span>`); B.over=true; B.result='flee'; }
+    else log(`<span class="l-warn">도망치지 못했다! (${Math.round(ch)}%)</span>`);
+  }
+  return false;
+}
+function skillCost(id,s){ return Math.max(1,Math.round(SKILLS[id].cost*(s||pStats()).skillCostMul)); }
+
+async function enemyAct(e){
+  const it=e.intents.shift(); e.last=it.id; refillIntents(e);
+  const S=eStats(e);
+  log(`<span class="l-warn">${nm(e,'의')} ${it.name}!</span>`);
+  renderBattle();
+  const mirrored=()=>{ if(it.skill&&P.st.mirror){ delete P.st.mirror; popup(P,'🪞반사','st'); log(`<span class="l-crit">🪞 거울 조각이 ${it.name}${josa(it.name,'을/를')} 튕겨냈다!</span>`); return true; } return false; };
+  switch(it.type){
+    case 'attack':{
+      const hits=it.hits||1;
+      if(mirrored()){ const d=Math.round((it.magic?S.mag:S.atk)*it.mult*hits); applyDamage(e,d); log(`${nm(e,'이/가')} 자기 기술에 <span class="l-dmg">${d}</span> 피해`); break; }
+      for(let i=0;i<hits;i++){ if(P.hp<=0||e.hp<=0) break;
+        const r=strike(e,P,(it.magic?S.mag:S.atk)*it.mult,{type:it.magic?'magic':'phys',element:it.element||null,lifesteal:it.lifesteal});
+        if(it.heavy&&r.hit) shakeScreen();
+        if(r.hit&&it.status&&P.hp>0&&chance(it.status[2]??100)) addStatus(P,it.status[0],it.status[1],it.status[3]||{});
+        renderBattle(); if(i<hits-1) await sleep(260);
+      }
+      break; }
+    case 'buff':{ const tg=it.target==='allies'?alive():[e]; for(const t of tg) addStatus(t,it.status[0],it.status[1],it.status[3]||{}); break; }
+    case 'debuff':{ if(mirrored()){ addStatus(e,it.status[0],it.status[1]); break; } if(chance(it.status[2]??100)) addStatus(P,it.status[0],it.status[1]); break; }
+    case 'heal':{ const t=alive().sort((a,b)=>a.hp/a.maxHp-b.hp/b.maxHp)[0]; const h=heal(t,t.maxHp*(it.pct||.25)); if(h) log(`${nm(t,'이/가')} <span class="l-heal">${h}</span> 회복했다.`); break; }
+    case 'summon':{ if(B.enemies.filter(x=>x.hp>0).length>=4){ log('<span class="l-sys">하지만 아무것도 나타나지 않았다.</span>'); break; }
+      const m=makeMonster(it.summon,false); m.exp=Math.round(m.exp*.5); m.gold=[0,Math.round(m.gold[1]/2)]; refillIntents(m); B.enemies.push(m); log(`<span class="l-warn">${nm(m,'이/가')} 나타났다!</span>`); break; }
+    case 'steal':{ const amt=Math.min(RUN.gold,ri(it.amount[0],it.amount[1])); RUN.gold-=amt; e.stolen=(e.stolen||0)+amt; popup(P,'-'+amt+'G','miss'); log(`<span class="l-warn">골드 ${amt}을 도둑맞았다! (쓰러뜨리면 되찾는다)</span>`); renderTop(); break; }
+  }
+  checkEnd();
+}
+
+function finishBattle(){
+  const result=B.result;
+  P.st={}; const giant=B.giant;
+  if(result==='lose'){ B=null; gameOver(); return; }
+  if(result==='flee'){ B=null; clampPlayer(); toast('무사히 달아났다.'); advance(); return; }
+  const s=pStats();
+  const gold=Math.round(B.gold*s.goldMul);
+  RUN.gold+=gold;
+  const lines=[`<span class="l-good">EXP +${B.exp}</span> · <span class="l-gold">골드 +${gold}</span>`];
+  const drops=[];
+  const killed=B.enemies.length;
+  if(B.boss){ drops.push(randomItem({gear:true,minRarity:'rare'})); drops.push(randomItem({type:'cons',minRarity:'rare'})); }
+  else { if(B.elite) drops.push(randomItem({minRarity:'rare'})); if(chance(22+s.dropBonus+killed*4)) drops.push(randomItem({})); }
+  for(const d of drops) lines.push('획득: '+gainItem(d));
+  if(s.postHeal){ const h=heal(P,s.maxHp*s.postHeal); if(h) lines.push(`🩹 응급처치 <span class="l-heal">+${h}</span>`); }
+  const mg=gainMana(s.maxMana*.35); if(mg) lines.push(`<span class="dim">숨을 고르며 마나 +${mg}</span>`);
+  const exp=B.exp;
+  B.mode='reward'; B.rewardLines=lines; B.giant=false; B.berserk=false;
+  if(giant) clampPlayer();
+  gainExp(exp);
+  renderBattle(); renderTop();
+}
+function afterBattle(){
+  const boss=B&&B.boss; B=null; clampPlayer();
+  processLevelUps(()=>{ if(boss) floorClear(); else advance(); });
+}
+function clampPlayer(){ const s=pStats(); P.hp=Math.min(P.hp,s.maxHp); P.mana=Math.min(P.mana,s.maxMana); }
+
+/* ---------- 성장 ---------- */
+function gainExp(n){ n=Math.round(n*pStats().expMul); META.exp+=n; while(META.exp>=expNeed(META.level)){ META.exp-=expNeed(META.level); META.level++; RUN.pendingLv++; const s=pStats(); heal(P,s.maxHp*.25); } saveMeta(); renderTop(); }
+function processLevelUps(done){
+  if(RUN.pendingLv>0){ RUN.pendingLv--; showPerkPick(()=>processLevelUps(done)); }
+  else if(RUN.vetPicks>0){ RUN.vetPicks--; showPerkPick(()=>processLevelUps(done),true); }
+  else done();
+}
+function showPerkPick(done,vet){
+  const pool=Object.keys(PERKS).filter(id=>!PERKS[id].cls||PERKS[id].cls.includes(RUN.cls));
+  const opts=shuffle(pool).slice(0,3);
+  openModal(`<h2>${vet?'🎖 베테랑의 감각':'⬆ 레벨 업! Lv.'+META.level}</h2>
+    <p class="dim small">${vet?'지난 모험의 경험이 몸에 남아 있다. 강화 하나를 고르세요.':'강화 하나를 고르세요. 강화는 이번 모험 동안만 유지됩니다.'}</p>
+    <div class="perks">${opts.map(id=>{ const pk=PERKS[id]; const n=RUN.perks[id]||0; return `<button class="btn card perk" onclick="pickPerk('${id}')"><h3>${pk.icon} ${pk.name}${n?` <span class="small dim">(보유 ${n})</span>`:''}</h3><div>${pk.desc}</div></button>`; }).join('')}</div>`);
+  window._perkDone=done;
+}
+function pickPerk(id){ RUN.perks[id]=(RUN.perks[id]||0)+1; if(PERKS[id].onPick) PERKS[id].onPick(); clampPlayer(); closeModal(); renderTop(); saveRun(); const d=window._perkDone; window._perkDone=null; if(d) d(); }
+function gainBonus(k,v){ RUN.bonus[k]=(RUN.bonus[k]||0)+v; }
+function gainGold(n,noMul){ const g=Math.round(n*(noMul?1:pStats().goldMul)*(noMul?1:floorScale())); RUN.gold+=g; return g; }
+function hurt(n){ P.hp=Math.max(1,P.hp-Math.round(n)); }
+function check(stat,dc){ dc+=(RUN.floor-1)*3; const v=pStats()[stat], d=Math.max(d10(),1)+(RUN.bonus.diceBonus||0), tot=v+d, ok=tot>=dc;
+  return {ok,text:`<span class="roll">🎲 ${d} + ${STAT_NAME[stat]} ${v} = <b>${tot}</b> ${ok?'≥':'<'} ${dc} → ${ok?'성공!':'실패'}</span>`}; }
+
+/* ---------- 아이템 ---------- */
+function randomItem(o){
+  const order=['common','rare','legend'];
+  let cand=Object.keys(ITEMS).filter(id=>{ const it=ITEMS[id]; if(it.recipeOnly) return false; if(o.type&&it.type!==o.type) return false; if(o.gear&&it.type==='cons') return false;
+    if(o.minRarity&&(order.indexOf(it.rarity)<order.indexOf(o.minRarity))) return false; return true; });
+  if(!cand.length) cand=Object.keys(ITEMS).filter(id=>!ITEMS[id].recipeOnly);
+  const rar=wpick([...new Set(cand.map(id=>ITEMS[id].rarity))],r=>RARITY[r].w+(r==='legend'?RUN.floor*2:0));
+  return pick(cand.filter(id=>ITEMS[id].rarity===rar));
+}
+function gainItem(id){
+  const it=ITEMS[id];
+  if(it.type==='cons'){
+    if(RUN.cons.length>=pStats().consSlots){ const g=Math.ceil(price(id)/2); RUN.gold+=g; return `${itName(id)} <span class="dim">(가방이 가득 차 ${g}골드에 팔았다)</span>`; }
+    RUN.cons.push(id);
+  } else {
+    if(RUN.bag.length>=10){ const g=Math.ceil(price(id)/2); RUN.gold+=g; return `${itName(id)} <span class="dim">(장비 가방이 가득 차 ${g}골드에 팔았다)</span>`; }
+    RUN.bag.push(id);
+  }
+  return itName(id);
+}
+function price(id){ const it=ITEMS[id]; const base=it.type==='cons'?it.price:(it.price||RARITY[it.rarity].gear); return Math.round(base*(1+.2*(RUN.floor-1))); }
+function itemDesc(id){ const it=ITEMS[id]; const st=it.stats||{}; const parts=[];
+  for(const k of ['atk','def','agi','mag','maxHp','maxMana','crit','evade']) if(st[k]) parts.push(`${STAT_NAME[k]} ${st[k]>0?'+':''}${st[k]}`);
+  return `${parts.length?`<b>${parts.join(' · ')}</b> — `:''}${it.desc}${it.element?' '+elTag(it.element):''}`; }
+
+/* =====================================================================
+   화면
+   ===================================================================== */
+function openModal(html){ const m=$('#modal'); m.innerHTML=`<div class="mbox">${html}</div>`; m.classList.add('open'); }
+function closeModal(){ const m=$('#modal'); m.classList.remove('open'); m.innerHTML=''; }
+function setMain(html){ $('#main').innerHTML=html; }
+
+function renderTop(){
+  const t=$('#top');
+  if(!RUN){ t.innerHTML=''; return; }
+  const s=pStats(), c=CLASSES[RUN.cls], need=expNeed(META.level);
+  t.innerHTML=`<div class="topbar">
+    <div class="tb-name"><span class="cls">${c.icon} ${c.name}</span><span class="num">Lv.${META.level}</span><span class="dim small">${RUN.floor}층 ${Math.min(RUN.step+1,floorDef().steps)}/${floorDef().steps}</span></div>
+    <div class="tb-right"><span class="gold">${RUN.gold}G</span>${B?'':`<button class="btn sm" onclick="showInventory()">가방</button>`}<button class="btn sm ghost" onclick="toggleFast()" aria-label="속도">${META.fast?'⏩':'▶'}</button></div>
+    <div class="bars"><div class="bar"><i style="width:${P.hp/s.maxHp*100}%"></i><span>HP ${P.hp}/${s.maxHp}</span></div>
+    <div class="bar mp"><i style="width:${s.maxMana?P.mana/s.maxMana*100:0}%"></i><span>MP ${P.mana}/${s.maxMana}</span></div>
+    <div class="bar xp"><i style="width:${META.exp/need*100}%"></i><span>${META.exp}/${need}</span></div></div></div>`;
+}
+function toggleFast(){ META.fast=!META.fast; saveMeta(); renderTop(); }
+
+/* ---------- 타이틀 ---------- */
+function showTitle(){
+  RUN=null; P=null; B=null; renderTop();
+  const saved=loadRun();
+  setMain(`<div class="scroll"><div class="title-wrap">
+    <div class="logo">심연의 계단<small>TEXT ROGUELIKE</small></div>
+    <p class="dim">직업을 골라 던전으로. 매 구역 갈림길을 고르고, 층 끝의 보스를 쓰러뜨리세요.<br>죽으면 처음부터 다시 시작하지만 <b style="color:var(--brass)">레벨은 남습니다.</b></p>
+    <div class="meta-box">
+      <div class="kv"><span class="dim">영혼의 레벨</span><b class="num">Lv.${META.level} <span class="dim small">(${META.exp}/${expNeed(META.level)})</span></b></div>
+      <div class="kv"><span class="dim">도전 횟수</span><b class="num">${META.runs}</b></div>
+      <div class="kv"><span class="dim">최고 기록</span><b class="num">${META.best?META.best+'층':'-'}</b></div>
+      <div class="kv"><span class="dim">발견한 레시피</span><b class="num">${META.recipes.length}/${RECIPES.length}</b></div>
+    </div>
+    ${saved?`<button class="btn primary" onclick="continueRun()">이어하기 — ${CLASSES[saved.cls].name}, ${saved.floor}층 ${saved.step+1}구역</button>`:''}
+    <button class="btn ${saved?'':'primary'}" onclick="showClassSelect()">${saved?'새 모험 (진행 중인 모험은 사라짐)':'새 모험'}</button>
+    <button class="btn ghost sm" id="resetBtn" onclick="resetAll(this)">기록 초기화</button>
+  </div></div>`);
+}
+function resetAll(btn){ if(btn.dataset.ok){ META=defaultMeta(); saveMeta(); RUN=null; saveRun(); showTitle(); toast('기록을 지웠습니다.'); return; } btn.dataset.ok=1; btn.textContent='한 번 더 누르면 레벨·레시피가 모두 지워집니다'; btn.classList.add('danger'); }
+function continueRun(){ RUN=loadRun(); if(!RUN){ showTitle(); return; } P=RUN.p; P.st={}; showMap(); }
+
+function showClassSelect(){
+  const vet=Math.min(4,Math.floor((META.level-1)/2));
+  setMain(`<div class="scroll"><h2>직업 선택</h2>
+    <p class="dim small">영혼 레벨 ${META.level}: 레벨만큼 기본 스탯이 오른 채 시작합니다.${vet?` 베테랑 보너스로 시작 강화 <b>${vet}개</b>를 고릅니다.`:''}</p>
+    ${Object.entries(CLASSES).map(([id,c])=>`<button class="btn card" onclick="newRun('${id}')">
+      <h3>${c.icon} ${c.name}</h3><div class="dim small">${c.blurb}</div>
+      <div class="statgrid"><div><span>공격</span><b>${c.base.atk}</b></div><div><span>방어</span><b>${c.base.def}</b></div><div><span>민첩</span><b>${c.base.agi}</b></div><div><span>마력</span><b>${c.base.mag}</b></div><div><span>마나</span><b>${c.base.maxMana}</b></div><div><span>HP</span><b>${c.base.maxHp}</b></div></div>
+      ${c.skills.map(k=>`<div class="skill-line"><b>${SKILLS[k].name}</b> (${SKILLS[k].cost}MP) — ${SKILLS[k].desc}</div>`).join('')}
+      <div class="skill-line"><b>패시브 · ${c.passive.name}</b> — ${c.passive.desc}</div>
+    </button>`).join('')}
+    <button class="btn ghost" onclick="showTitle()">뒤로</button></div>`);
+}
+function newRun(cls){
+  const c=CLASSES[cls];
+  RUN={cls,p:{isPlayer:true,uid:'p',name:c.name,hp:0,mana:0,st:{},cd:{}},gold:30,perks:{},bonus:{},equip:{weapon:null,armor:null,acc1:null,acc2:null},
+       bag:[],cons:[...c.start],floor:1,step:0,choices:null,kills:0,nextBattle:[],pendingLv:0,vetPicks:Math.min(4,Math.floor((META.level-1)/2))};
+  P=RUN.p; const s=pStats(); P.hp=s.maxHp; P.mana=s.maxMana;
+  META.runs++; saveMeta();
+  processLevelUps(()=>{ const s2=pStats(); P.hp=s2.maxHp; P.mana=s2.maxMana; showMap(); });
+}
+
+/* ---------- 지도 ---------- */
+function genChoices(){
+  const F=floorDef(), st=RUN.step;
+  if(st===F.steps-1) return ['boss'];
+  if(st===0) return ['battle','event'];
+  const n=chance(55)?3:2, types=[];
+  if(st===F.steps-2) types.push('rest');
+  while(types.length<n){ const pool=Object.keys(NODE_TYPES).filter(k=>!types.includes(k)&&st>=(NODE_TYPES[k].minStep||0)); types.push(wpick(pool,k=>NODE_TYPES[k].w)); }
+  if(!types.some(t=>t==='battle'||t==='elite')&&chance(60)) types[types.length-1]='battle';
+  return shuffle([...new Set(types)]);
+}
+function showMap(){
+  B=null; closeModal();
+  if(!RUN.choices) RUN.choices=genChoices();
+  saveRun(); renderTop();
+  const F=floorDef();
+  const path=Array.from({length:F.steps},(_,i)=>i===F.steps-1?`<em title="보스">${i<RUN.step?'✝':'👑'}</em>`:`<i class="${i<RUN.step?'done':i===RUN.step?'now':''}"></i>`).join('');
+  const isBoss=RUN.choices[0]==='boss';
+  setMain(`<div class="scroll">
+    <div class="floor-head"><span class="dim small">${RUN.floor}층${RUN.floor>FLOORS.length?' · 심층 (몬스터 강화)':''}</span><h2>${F.name}</h2><div class="path">${path}</div></div>
+    <p class="flavor">${isBoss?F.bossIntro:pick(F.flavor)}</p>
+    <div class="sec-t">${isBoss?'최후의 방':'갈림길 — 어디로 갈까?'}</div>
+    <div class="choices">${RUN.choices.map((t,i)=>{ if(t==='boss'){ const m=MONSTERS[F.boss]; return `<button class="btn card choice boss" onclick="enterNode(${i})"><span class="ic">${m.icon}</span><div><h3>보스 · ${m.name}</h3><div class="dim small">${m.desc}</div></div></button>`; }
+      const n=NODE_TYPES[t]; return `<button class="btn card choice n-${t}" onclick="enterNode(${i})"><span class="ic">${n.icon}</span><div><h3>${n.name}</h3><div class="dim small">${n.desc}</div></div></button>`; }).join('')}</div>
+  </div>`);
+}
+function advance(){ RUN.step++; RUN.choices=null; showMap(); }
+function enterNode(i){
+  const t=RUN.choices[i];
+  switch(t){
+    case 'boss': startBattle([floorDef().boss],{boss:true}); break;
+    case 'battle': startBattle(genEncounter()); break;
+    case 'elite': { const F=floorDef(); const ids=[wpick(Object.entries(F.pool).filter(([id])=>MONSTERS[id].cost>=1),x=>x[1])[0]]; if(RUN.step>=5&&chance(50)) ids.push(genEncounter()[0]); startBattle(ids,{elite:true}); break; }
+    case 'event': showEvent(pick(EVENTS)); break;
+    case 'shop': showShop(true); break;
+    case 'alchemist': showAlchemist(true); break;
+    case 'rest': showRest(); break;
+    case 'treasure': showTreasure(); break;
+  }
+}
+
+/* ---------- 전투 화면 ---------- */
+function renderBattleShell(){
+  renderTop();
+  setMain(`<div class="battle"><div id="enemies" class="enemies"></div><div id="initbar" class="initbar"></div><div id="blog" class="blog" aria-live="polite"></div><div id="cb-p" class="pcard" onclick="showPlayerInfo()"></div><div id="actions" class="actions"></div></div>`);
+}
+function chipsHTML(c){ return Object.entries(c.st).map(([id,st])=>{ const d=STATUSES[id]; const n=id==='bleed'?st.stack:(d.tick==='none'?'':st.t); return `<span class="chip ${d.bad?'bad':'good'}" title="${d.name}: ${d.desc}">${id==='imbue'?ELEMENTS[st.el].icon:d.icon}${d.name}${n!==''?' '+n:''}</span>`; }).join(''); }
+function renderBattle(){
+  if(!B||!$('#enemies')) return;
+  const s=pStats();
+  renderTop();
+  const box=$('#enemies');
+  for(const e of B.enemies){
+    let el=document.getElementById('cb-'+e.uid);
+    if(!el){ el=document.createElement('div'); el.id='cb-'+e.uid; el.setAttribute('role','button'); el.tabIndex=0; el.onclick=()=>uiTarget(e.uid); box.appendChild(el); }
+    el.className=`ecard${e.boss?' boss':''}${e.elite?' elite':''}${e.hp<=0?' dead':''}${B.cur===e?' acting':''}${B.mode==='target'&&e.hp>0?' tgt':''}`+(el.classList.contains('shake')?' shake flash':'');
+    el.innerHTML=`<div class="e-top"><span class="e-icon">${e.icon}</span><span class="e-name">${e.name}</span></div>
+      <div class="badges">${e.element?`<span class="badge">${elTag(e.element)}</span>`:''}${e.tags.map(t=>`<span class="badge">${t==='undead'?'언데드':t==='demon'?'악마':t}</span>`).join('')}</div>
+      <div class="bar"><i style="width:${e.hp/e.maxHp*100}%"></i><span>${e.hp}/${e.maxHp}</span></div>
+      <div class="chips">${chipsHTML(e)}</div>
+      ${e.hp>0?intentHTML(e,e.intents[0])+(s.flags.seeTwo&&e.intents[1]?intentHTML(e,e.intents[1],true):''):'<div class="intent faint">쓰러짐</div>'}`;
+  }
+  $('#initbar').innerHTML=B.rolls.map(r=>`<span class="ini${r.c.isPlayer?' me':''}${r.extra?' extra':''}${B.cur===r.c?' now':''}">${r.c.isPlayer?'나':r.c.name} <b>${r.total}</b> <span class="dim">(${r.agi}+🎲${r.die2!=null?Math.max(r.die,r.die2):r.die}${r.bonus?'+'+r.bonus:''})</span>${r.extra?' ⚡×2':''}</span>`).join('<span class="faint">›</span>');
+  const pc=$('#cb-p');
+  pc.className='pcard'+(B.cur===P?' acting':'')+(pc.classList.contains('shake')?' shake flash':'');
+  pc.innerHTML=`<div class="p-row"><b class="n-p">${CLASSES[RUN.cls].icon} ${P.name}</b><span class="dim small num">공${s.atk} 방${s.def} 민${s.agi} 마${s.mag}</span>${s.element||P.st.imbue?`<span class="small">${elTag((P.st.imbue&&P.st.imbue.el)||s.element)}</span>`:''}</div>
+    <div class="p-row"><div class="bar"><i style="width:${P.hp/s.maxHp*100}%"></i><span>HP ${P.hp}/${s.maxHp}</span></div><div class="bar mp"><i style="width:${s.maxMana?P.mana/s.maxMana*100:0}%"></i><span>MP ${P.mana}/${s.maxMana}</span></div>${B.shield>0?`<div class="bar sh" style="flex:.5"><i style="width:100%"></i><span>🛡${B.shield}</span></div>`:''}</div>
+    <div class="chips">${chipsHTML(P)}</div>`;
+  renderActions(s);
+}
+function renderActions(s){
+  const a=$('#actions');
+  if(B.mode==='reward'){ a.innerHTML=`<div class="reward"><h3>${B.boss?'보스 격파!':'승리!'}</h3>${B.rewardLines.map(l=>`<div>${l}</div>`).join('')}<button class="btn primary" onclick="afterBattle()">계속</button></div>`; return; }
+  if(B.mode==='busy'||!B.awaiting){ a.innerHTML=`<div class="note">${B.cur&&!B.cur.isPlayer?`${B.cur.name}의 차례...`:'...'}</div>`; return; }
+  if(B.mode==='target'){ a.innerHTML=`<div class="note">대상을 선택하세요 (위의 적을 누르세요)</div><button class="btn wide" onclick="uiAct('back')">취소</button>`; return; }
+  if(B.mode==='skills'){
+    const sil=!!P.st.silence;
+    a.innerHTML=`<div class="actlist">${RUN.skillsOverride?'':''}${CLASSES[RUN.cls].skills.map(id=>{ const sk=SKILLS[id], cost=skillCost(id,s), cd=P.cd[id]||0; const dis=sil||P.mana<cost||cd>0;
+      return `<button class="btn act-item" ${dis?'disabled':''} onclick="uiAct('skill','${id}')"><b>${sk.name}</b><span class="num" style="color:var(--mana)">${cost}MP${cd?` · ⏳${cd}`:''}</span><span class="d">${sk.desc}</span></button>`; }).join('')}</div>
+      ${sil?'<div class="note l-warn">침묵 상태라 스킬을 쓸 수 없다</div>':''}<button class="btn wide" onclick="uiAct('back')">뒤로</button>`; return; }
+  if(B.mode==='items'){
+    a.innerHTML=`<div class="actlist">${RUN.cons.length?RUN.cons.map((id,i)=>{ const it=ITEMS[id]; const dis=!it.use||it.passive||!(it.battle||it.field);
+      return `<button class="btn act-item" ${dis?'disabled':''} onclick="uiAct('item',${i})"><b class="rar-${it.rarity}">${it.icon} ${it.name}</b><span class="small dim">${it.quick?'즉시':''}</span><span class="d">${it.desc}</span></button>`; }).join(''):'<div class="note">소모품이 없다</div>'}</div><button class="btn wide" onclick="uiAct('back')">뒤로</button>`; return; }
+  const canFlee=!B.boss;
+  a.innerHTML=`<button class="btn primary" onclick="uiAct('attack')">⚔ 공격</button>
+    <button class="btn" onclick="uiAct('skills')" ${P.st.silence?'disabled':''}>✶ 스킬</button>
+    <button class="btn" onclick="uiAct('items')">🎒 아이템 <span class="dim small">${RUN.cons.length}</span></button>
+    <button class="btn" onclick="uiAct('defend')">🛡 방어</button>
+    <button class="btn" onclick="uiAct('flee')" ${canFlee?'':'disabled'}>🏃 도주${B.fleeSure?' ✓':''}</button>
+    <button class="btn ghost" onclick="showPlayerInfo()">ℹ 정보</button>`;
+}
+function showEnemyInfo(e){
+  const S=eStats(e), d=MONSTERS[e.id];
+  openModal(`<h2>${e.icon} ${e.name}</h2><p class="dim">${d.desc||''}</p>
+    <div class="statline"><div>공격<b>${S.atk}</b></div><div>방어<b>${S.def}</b></div><div>민첩<b>${S.agi}</b></div><div>마력<b>${S.mag}</b></div></div>
+    <div>${e.element?'속성 '+elTag(e.element)+' · ':''}${e.element?`약점 ${elTag(Object.keys(ELEMENT_BEATS).find(k=>ELEMENT_BEATS[k]===e.element))}`:'속성 없음'}${e.tags.length?' · '+e.tags.map(t=>t==='undead'?'언데드':'악마').join(', '):''}</div>
+    ${Object.keys(e.st).length?`<div class="sec-t">상태</div>${Object.entries(e.st).map(([id,st])=>`<div class="small">${STATUSES[id].icon} <b>${STATUSES[id].name}</b> — ${STATUSES[id].desc}</div>`).join('')}`:''}
+    <div class="sec-t">할 수 있는 행동</div>${d.ai.map(a=>`<div class="small">• ${a.name}${a.heavy?' 💥':''}${a.status?` (${STATUSES[a.status[0]].name})`:''}</div>`).join('')}
+    <button class="btn" onclick="closeModal()">닫기</button>`);
+}
+function showPlayerInfo(){
+  const s=pStats();
+  openModal(`<h2>${CLASSES[RUN.cls].icon} ${P.name} <span class="num small dim">Lv.${META.level}</span></h2>
+    ${statPanel(s)}
+    ${Object.keys(P.st).length?`<div class="sec-t">상태</div>${Object.entries(P.st).map(([id])=>`<div class="small">${STATUSES[id].icon} <b>${STATUSES[id].name}</b> — ${STATUSES[id].desc}</div>`).join('')}`:''}
+    <div class="sec-t">행동 순서</div><div class="small dim">매 라운드 <b>민첩 + 주사위(1~10)</b>가 높은 순서로 행동합니다. 상대의 2배 이상이면 ⚡추가 행동을 얻습니다.</div>
+    <div class="sec-t">속성 상성</div><div class="small">${elTag('fire')} → ${elTag('ice')} → ${elTag('lightning')} → ${elTag('fire')} · ${elTag('holy')} ↔ ${elTag('dark')} <span class="dim">(유리 150%, 불리·같은 속성 70%)</span></div>
+    <button class="btn" onclick="closeModal()">닫기</button>`);
+}
+function statPanel(s){ return `<div class="statline"><div>공격<b>${s.atk}</b></div><div>방어<b>${s.def}</b></div><div>민첩<b>${s.agi}</b></div><div>마력<b>${s.mag}</b></div>
+  <div>치명<b>${Math.round(s.crit+s.agi*.5)}%</b></div><div>회피<b>${s.evade}%</b></div><div>흡혈<b>${Math.round(s.lifesteal*100)}%</b></div><div>마나/턴<b>${s.manaRegen}</b></div></div>
+  <div class="small dim">패시브 · <b style="color:var(--ink)">${CLASSES[RUN.cls].passive.name}</b> — ${CLASSES[RUN.cls].passive.desc}</div>`; }
+
+/* ---------- 가방 ---------- */
+function showInventory(){
+  const s=pStats();
+  const perks=Object.entries(RUN.perks);
+  openModal(`<div class="row"><h2 class="grow">가방</h2><button class="btn sm" onclick="closeModal()">닫기</button></div>
+    ${statPanel(s)}
+    <div class="sec-t">장착</div>
+    <div class="slots">${SLOTS.map(sl=>{ const id=RUN.equip[sl]; return `<button class="slot" onclick="${id?`invDetail('equip','${sl}')`:''}"><span class="lab">${SLOT_NAME[sl]}</span>${id?`<span>${itName(id)}</span><span class="small dim">${ITEMS[id].desc}</span>`:'<span class="faint">비어 있음</span>'}</button>`; }).join('')}</div>
+    <div class="sec-t">장비 (${RUN.bag.length}/10)</div>
+    <div class="items">${RUN.bag.length?RUN.bag.map((id,i)=>`<button class="btn it" onclick="invDetail('bag',${i})"><span class="ico">${ITEMS[id].icon}</span><div><b class="rar-${ITEMS[id].rarity}">${ITEMS[id].name}</b> <span class="small faint">${TYPE_NAME[ITEMS[id].type]} · ${RARITY[ITEMS[id].rarity].name}</span><div class="d">${itemDesc(id)}</div></div><span></span></button>`).join(''):'<div class="faint small">없음</div>'}</div>
+    <div class="sec-t">소모품 (${RUN.cons.length}/${s.consSlots})</div>
+    <div class="items">${RUN.cons.length?RUN.cons.map((id,i)=>`<button class="btn it" onclick="invDetail('cons',${i})"><span class="ico">${ITEMS[id].icon}</span><div><b class="rar-${ITEMS[id].rarity}">${ITEMS[id].name}</b><div class="d">${ITEMS[id].desc}</div></div><span class="small dim">${ITEMS[id].field?'사용 가능':'전투용'}</span></button>`).join(''):'<div class="faint small">없음</div>'}</div>
+    ${perks.length?`<div class="sec-t">강화</div><div class="small">${perks.map(([id,n])=>`${PERKS[id].icon} ${PERKS[id].name}${n>1?' ×'+n:''}`).join(' · ')}</div>`:''}
+  `);
+}
+function invDetail(where,k){
+  let id, btns='';
+  if(where==='equip'){ id=RUN.equip[k]; btns=`<button class="btn" onclick="unequip('${k}')">해제${ITEMS[id].rarity==='cursed'?' (저주: HP -10)':''}</button>`; }
+  else if(where==='bag'){ id=RUN.bag[k]; const it=ITEMS[id];
+    if(it.type==='acc') btns=`<button class="btn primary" onclick="equip(${k},'acc1')">악세사리 1에 장착</button><button class="btn primary" onclick="equip(${k},'acc2')">악세사리 2에 장착</button>`;
+    else btns=`<button class="btn primary" onclick="equip(${k},'${it.type}')">장착</button>`;
+    btns+=`<button class="btn danger" onclick="discard('bag',${k})">버리기</button>`; }
+  else { id=RUN.cons[k]; const it=ITEMS[id]; btns=(it.field?`<button class="btn primary" onclick="useField(${k})">사용</button>`:'')+`<button class="btn danger" onclick="discard('cons',${k})">버리기</button>`; }
+  const it=ITEMS[id];
+  openModal(`<h2>${itName(id)}</h2><div class="small faint">${TYPE_NAME[it.type]} · <span class="rar-${it.rarity}">${RARITY[it.rarity].name}</span></div><div>${itemDesc(id)}</div>
+    <div class="row">${btns}<button class="btn ghost" onclick="showInventory()">뒤로</button></div>`);
+}
+function equip(i,slot){ const id=RUN.bag[i]; const old=RUN.equip[slot];
+  if(old&&ITEMS[old].rarity==='cursed'){ hurt(10); toast('저주가 손을 놓지 않으려 한다... HP -10'); }
+  RUN.bag.splice(i,1); if(old) RUN.bag.push(old); RUN.equip[slot]=id; clampPlayer(); renderTop(); saveRun(); showInventory();
+  if(ITEMS[id].rarity==='cursed') toast(`${itName(id)} — 차가운 기운이 팔을 타고 오른다.`); }
+function unequip(slot){ const id=RUN.equip[slot]; if(RUN.bag.length>=10){ toast('장비 가방이 가득 찼다.'); return; } if(ITEMS[id].rarity==='cursed'){ hurt(10); toast('저주를 억지로 떼어냈다. HP -10'); } RUN.equip[slot]=null; RUN.bag.push(id); clampPlayer(); renderTop(); saveRun(); showInventory(); }
+function discard(where,i){ (where==='bag'?RUN.bag:RUN.cons).splice(i,1); saveRun(); showInventory(); }
+function useField(i){ const id=RUN.cons[i]; RUN.cons.splice(i,1); ITEMS[id].use(); clampPlayer(); renderTop(); saveRun(); showInventory(); }
+
+/* ---------- 이벤트 ---------- */
+function showEvent(ev){
+  renderTop();
+  setMain(`<div class="scroll"><span class="dim small">사건</span><h2>${ev.icon} ${ev.title}</h2><div class="ev-text"><p>${ev.text}</p></div>
+    <div class="choices">${ev.choices.map((c,i)=>{ const ok=!c.cond||c.cond(); return `<button class="btn card" ${ok?'':'disabled'} onclick="eventChoose('${ev.id}',${i})"><b>${c.label}</b>${c.hint?`<span class="small dim">${c.hint}</span>`:''}</button>`; }).join('')}</div></div>`);
+}
+function eventChoose(evId,i){
+  const ev=EVENTS.find(e=>e.id===evId); const r=ev.choices[i].run()||{text:''};
+  if(r.exp) gainExp(r.exp);
+  clampPlayer(); renderTop(); saveRun();
+  const next=r.battle?`<button class="btn primary" onclick="eventBattle()">⚔ 싸운다!</button>`:`<button class="btn primary" onclick="eventDone()">계속</button>`;
+  window._evBattle=r.battle?{ids:r.battle,elite:!!r.elite}:null;
+  setMain(`<div class="scroll"><span class="dim small">사건</span><h2>${ev.icon} ${ev.title}</h2><div class="ev-text"><p class="dim">› ${ev.choices[i].label}</p><p>${r.text}</p></div>${next}</div>`);
+}
+function eventBattle(){ const b=window._evBattle; window._evBattle=null; startBattle(b.ids,{elite:b.elite}); }
+function eventDone(){ processLevelUps(()=>advance()); }
+
+/* ---------- 상점 ---------- */
+function showShop(fresh){
+  if(fresh){ const cons=[], gear=[]; while(cons.length<4) cons.push(randomItem({type:'cons'})); while(gear.length<3) gear.push(randomItem({gear:true})); RUN.shop={cons,gear,sold:[]}; saveRun(); }
+  renderTop();
+  const sh=RUN.shop, N=NPCS.merchant;
+  const row=(id,i,kind)=>{ const p=price(id), sold=sh.sold.includes(kind+i); return `<button class="btn it" ${sold||RUN.gold<p?'disabled':''} onclick="buy('${kind}',${i})"><span class="ico">${ITEMS[id].icon}</span><div><b class="rar-${ITEMS[id].rarity}">${ITEMS[id].name}</b> <span class="small faint">${TYPE_NAME[ITEMS[id].type]}</span><div class="d">${itemDesc(id)}</div></div><span class="gold">${sold?'판매됨':p+'G'}</span></button>`; };
+  setMain(`<div class="scroll"><span class="dim small">상점</span><h2>${N.icon} ${N.name}</h2><p class="flavor">"${pick(N.lines)}"</p>
+    <div class="sec-t">소모품</div><div class="items">${sh.cons.map((id,i)=>row(id,i,'c')).join('')}</div>
+    <div class="sec-t">장비</div><div class="items">${sh.gear.map((id,i)=>row(id,i,'g')).join('')}</div>
+    <div class="row"><button class="btn grow" onclick="showSell()">물건 팔기</button><button class="btn primary grow" onclick="advance()">떠난다</button></div></div>`);
+}
+function buy(kind,i){ const sh=RUN.shop; const id=kind==='c'?sh.cons[i]:sh.gear[i]; const p=price(id); if(RUN.gold<p||sh.sold.includes(kind+i)) return;
+  if(kind==='c'&&RUN.cons.length>=pStats().consSlots){ toast('소모품 슬롯이 가득 찼다.'); return; }
+  if(kind==='g'&&RUN.bag.length>=10){ toast('장비 가방이 가득 찼다.'); return; }
+  RUN.gold-=p; sh.sold.push(kind+i); gainItem(id); toast(`${itName(id)} 구입`); saveRun(); showShop(false); }
+function showSell(){
+  const list=[...RUN.bag.map((id,i)=>({id,i,w:'bag'})),...RUN.cons.map((id,i)=>({id,i,w:'cons'}))];
+  openModal(`<div class="row"><h2 class="grow">물건 팔기</h2><button class="btn sm" onclick="closeModal();showShop(false)">닫기</button></div>
+    <div class="items">${list.length?list.map(x=>`<button class="btn it" onclick="sell('${x.w}',${x.i})"><span class="ico">${ITEMS[x.id].icon}</span><div><b class="rar-${ITEMS[x.id].rarity}">${ITEMS[x.id].name}</b><div class="d">${ITEMS[x.id].desc}</div></div><span class="gold">+${Math.ceil(price(x.id)/2)}G</span></button>`).join(''):'<div class="faint">팔 물건이 없다. 장착한 장비는 먼저 해제하세요.</div>'}</div>`);
+}
+function sell(w,i){ const arr=w==='bag'?RUN.bag:RUN.cons; const id=arr[i]; arr.splice(i,1); RUN.gold+=Math.ceil(price(id)/2); renderTop(); saveRun(); showSell(); }
+
+/* ---------- 연금술사 ---------- */
+function showAlchemist(fresh){
+  if(fresh){ RUN.alch={sel:[],free:1}; const unknown=RECIPES.filter(r=>!META.recipes.includes(r.a+'+'+r.b)); RUN.alch.hint=unknown.length?pick(unknown).hint:'자네는 이미 내 비법을 다 알아버렸군.'; }
+  renderTop();
+  const A=RUN.alch, N=NPCS.alchemist, cost=A.free>0?0:N.cost;
+  const list=[...RUN.cons.map((id,i)=>({id,key:'c'+i})),...RUN.bag.map((id,i)=>({id,key:'b'+i}))];
+  setMain(`<div class="scroll"><span class="dim small">연금술사</span><h2>${N.icon} ${N.name}</h2><p class="flavor">"${pick(N.lines)}" <br>…그리고 귓속말: "${A.hint}"</p>
+    <div class="sec-t">재료 2개 선택 (소모품·가방의 장비)</div>
+    <div class="items">${list.length?list.map(x=>`<button class="btn it ${A.sel.includes(x.key)?'sel':''}" onclick="alchSel('${x.key}')"><span class="ico">${ITEMS[x.id].icon}</span><div><b class="rar-${ITEMS[x.id].rarity}">${ITEMS[x.id].name}</b><div class="d">${ITEMS[x.id].desc}</div></div><span>${A.sel.includes(x.key)?'✓':''}</span></button>`).join(''):'<div class="faint">넣을 재료가 없다.</div>'}</div>
+    <button class="btn primary" ${A.sel.length===2&&RUN.gold>=cost?'':'disabled'} onclick="alchemize()">솥에 넣는다 (${cost?cost+'G':'첫 번째는 무료'})</button>
+    <div class="row"><button class="btn grow" onclick="showRecipes()">레시피 노트 ${META.recipes.length}/${RECIPES.length}</button><button class="btn grow" onclick="advance()">떠난다</button></div></div>`);
+}
+function alchSel(k){ const A=RUN.alch; const i=A.sel.indexOf(k); if(i>=0) A.sel.splice(i,1); else { if(A.sel.length>=2) A.sel.shift(); A.sel.push(k); } showAlchemist(false); }
+function alchemize(){
+  const A=RUN.alch, cost=A.free>0?0:NPCS.alchemist.cost; if(A.sel.length!==2||RUN.gold<cost) return;
+  const get=k=>k[0]==='c'?RUN.cons[+k.slice(1)]:RUN.bag[+k.slice(1)];
+  const a=get(A.sel[0]), b=get(A.sel[1]);
+  // 큰 인덱스부터 제거
+  const rm=[...A.sel].sort((x,y)=>(x[0]===y[0]?+y.slice(1)-+x.slice(1):0));
+  for(const k of rm.filter(k=>k[0]==='c').sort((x,y)=>+y.slice(1)-+x.slice(1))) RUN.cons.splice(+k.slice(1),1);
+  for(const k of rm.filter(k=>k[0]==='b').sort((x,y)=>+y.slice(1)-+x.slice(1))) RUN.bag.splice(+k.slice(1),1);
+  RUN.gold-=cost; if(A.free>0) A.free--; A.sel=[];
+  const r=RECIPES.find(r=>(r.a===a&&r.b===b)||(r.a===b&&r.b===a));
+  let out, msg;
+  if(r){ out=r.out; const key=r.a+'+'+r.b; const isNew=!META.recipes.includes(key); if(isNew){ META.recipes.push(key); saveMeta(); } msg=isNew?'<b class="l-crit">✨ 새 레시피 발견!</b>':'알고 있던 레시피다.'; }
+  else { const ta=ITEMS[a].type, tb=ITEMS[b].type;
+    if(ta===tb&&chance(70)){ out=randomItem(ta==='cons'?{type:'cons'}:{type:ta}); msg='솥이 부글거리더니 비슷한 무언가가 나왔다.'; }
+    else if(chance(35)){ out=randomItem({type:'cons'}); msg='엉뚱한 것이 나왔다.'; }
+    else { out='junk'; msg='솥에서 시커먼 연기가... 실패작이다.'; } }
+  const got=gainItem(out); saveRun();
+  openModal(`<h2>⚗ 연금 결과</h2><div>${itName(a)} + ${itName(b)}</div><div style="font-size:18px">→ ${got}</div><div>${msg}</div><div class="dim small">${ITEMS[out].desc}</div><button class="btn primary" onclick="closeModal();showAlchemist(false)">확인</button>`);
+}
+function showRecipes(){
+  openModal(`<div class="row"><h2 class="grow">레시피 노트</h2><button class="btn sm" onclick="closeModal()">닫기</button></div>
+    <div class="items">${RECIPES.map(r=>{ const k=r.a+'+'+r.b; return META.recipes.includes(k)?`<div class="small">${itName(r.a)} + ${itName(r.b)} → ${itName(r.out)}</div>`:`<div class="small faint">??? + ??? → ???</div>`; }).join('')}</div>
+    <div class="small dim">레시피에 없는 조합도 같은 종류끼리 섞으면 쓸만한 것이 나오기도 합니다. 발견한 레시피는 다음 모험에도 남습니다.</div>`);
+}
+
+/* ---------- 휴식 / 보물 ---------- */
+function showRest(){
+  renderTop(); const s=pStats();
+  setMain(`<div class="scroll"><span class="dim small">휴식</span><h2>🔥 꺼져가는 모닥불</h2><p class="flavor">불씨를 살려 잠시 몸을 녹인다. 할 수 있는 일은 하나뿐이다.</p>
+    <div class="choices">
+      <button class="btn card" onclick="rest('sleep')"><b>푹 잔다</b><span class="small dim">HP ${Math.round(s.maxHp*.4)} 회복</span></button>
+      <button class="btn card" onclick="rest('meditate')"><b>명상한다</b><span class="small dim">마나 전부 + HP ${Math.round(s.maxHp*.15)} 회복</span></button>
+      <button class="btn card" onclick="rest('train')"><b>수련한다</b><span class="small dim">EXP +${14+RUN.floor*6}</span></button>
+    </div></div>`);
+}
+function rest(k){ const s=pStats();
+  if(k==='sleep'){ const h=heal(P,s.maxHp*.4); toast(`HP <b class="l-good">+${h}</b>`); }
+  if(k==='meditate'){ P.mana=s.maxMana; const h=heal(P,s.maxHp*.15); toast(`마나 전부, HP <b class="l-good">+${h}</b>`); }
+  if(k==='train'){ gainExp(14+RUN.floor*6); toast(`EXP +${14+RUN.floor*6}`); }
+  renderTop(); processLevelUps(()=>advance()); }
+function showTreasure(){
+  renderTop();
+  if(chance(18)){ setMain(`<div class="scroll"><span class="dim small">보물</span><h2>💎 반짝이는 상자</h2><div class="ev-text"><p>뚜껑을 여는 순간, 상자에 이빨이 돋아났다!</p></div><button class="btn primary" onclick="startBattle(['mimic'])">⚔ 싸운다!</button></div>`); return; }
+  const s=pStats(); const g=gainGold(ri(15,30)); const lines=[`<b class="l-gold">골드 ${g}</b>`, gainItem(randomItem(chance(50)?{gear:true}:{type:'cons'}))];
+  if(s.dropBonus&&chance(35)) lines.push(gainItem(randomItem({type:'cons'}))+' <span class="dim">(손버릇)</span>');
+  saveRun(); renderTop();
+  setMain(`<div class="scroll"><span class="dim small">보물</span><h2>💎 반짝이는 상자</h2><div class="ev-text"><p>상자 안에서 찾은 것:</p><p>${lines.join('<br>')}</p></div><button class="btn primary" onclick="advance()">계속</button></div>`);
+}
+
+/* ---------- 층 클리어 / 게임 오버 ---------- */
+function floorClear(){
+  META.best=Math.max(META.best,RUN.floor); saveMeta();
+  const done=RUN.floor; RUN.floor++; RUN.step=0; RUN.choices=null;
+  const h=heal(P,pStats().maxHp*.3); P.mana=pStats().maxMana; saveRun(); renderTop();
+  const nextF=floorDef();
+  setMain(`<div class="scroll"><span class="dim small">${done}층 정복</span><h2>✝ ${MONSTERS[FLOORS[Math.min(done,FLOORS.length)-1].boss].name} 격파!</h2>
+    <div class="ev-text"><p>왕관이 바닥에 굴러떨어진다. 옥좌 뒤로 더 깊은 계단이 열렸다.</p>
+    <p><b class="l-good">HP +${h}, 마나 전부 회복</b></p>
+    <p class="dim">${RUN.floor>FLOORS.length?`다음 층은 아직 지도에 없다. ${RUN.floor}층은 ${nextF.name}의 더 깊은 곳 — 같은 몬스터가 훨씬 강해져 기다린다.`:nextF.name+'(으)로 내려간다.'}</p></div>
+    <button class="btn primary" onclick="showMap()">${RUN.floor}층으로 내려간다</button></div>`);
+}
+function gameOver(){
+  const r=RUN; META.best=Math.max(META.best,r.floor-(r.step===0?1:0)); saveMeta();
+  RUN=null; saveRun(); renderTop();
+  setMain(`<div class="scroll"><span class="dim small">모험 종료</span><h2 style="color:var(--blood);font-size:30px">당신은 쓰러졌다</h2>
+    <div class="ev-text"><p>${CLASSES[r.cls].name}의 여정은 <b>${r.floor}층 ${r.step+1}구역</b>에서 멈췄다. 처치한 적 <b>${r.kills}</b>.</p>
+    <p>그러나 영혼은 기억한다. <b style="color:var(--brass)">Lv.${META.level}</b> (${META.exp}/${expNeed(META.level)})은 다음 모험에도 이어진다.</p></div>
+    <button class="btn primary" onclick="showClassSelect()">다시 도전</button><button class="btn ghost" onclick="showTitle()">타이틀로</button></div>`);
+}
+
+/* ---------- 시작 ---------- */
+META=loadMeta();
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&$('#modal').classList.contains('open')&&!window._perkDone) closeModal(); });
+$('#modal').addEventListener('click',e=>{ if(e.target.id==='modal'&&!window._perkDone) closeModal(); });
+showTitle();
+</script>
+</body>
+</html>
