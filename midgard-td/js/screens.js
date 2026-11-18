@@ -49,8 +49,17 @@ const Screens = (() => {
     });
     s.querySelector('.go').addEventListener('click', () => App.goto('stages'));
     s.querySelector('.roster').addEventListener('click', () => App.goto('chars'));
-    s.querySelector('.reset').addEventListener('click', () => {
-      if (confirm('저장 데이터(레벨·별·연)를 모두 지울까요?')) { Save.reset(); App.goto('title'); }
+    // 확인 창 대신 두 번 누르기로 초기화 (일부 환경은 confirm 창이 막혀 있음)
+    const resetBtn = s.querySelector('.reset');
+    let armed = false;
+    resetBtn.addEventListener('click', () => {
+      if (!armed) {
+        armed = true;
+        resetBtn.textContent = '한 번 더 누르면 레벨·별·연이 모두 지워집니다';
+        setTimeout(() => { armed = false; if (resetBtn.isConnected) resetBtn.textContent = '저장 데이터 초기화'; }, 3000);
+        return;
+      }
+      Save.reset(); App.goto('title');
     });
     return s;
   }
